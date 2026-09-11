@@ -38,14 +38,18 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { token, body, headers, ...rest } = options
 
+  // FormData 不能自己设 content-type，也不能 JSON.stringify——
+  // 前者会丢掉 multipart 的 boundary，后者会把它变成 "{}"。
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+
   const res = await fetch(`${BASE_URL}/api${path}`, {
     ...rest,
     headers: {
-      ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
+      ...(body !== undefined && !isFormData ? { 'content-type': 'application/json' } : {}),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: isFormData ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
   })
 
   const raw = await res.text()
@@ -96,4 +100,14 @@ export async function authedFetch<T>(
     throw new ApiError(401, '登录状态已失效，请重新登录', 'UNAUTHORIZED')
   }
   return apiFetch<T>(path, { ...options, token })
+}
+
+/**
+ * 上传文件（multipart/form-data）。
+ *
+ * **不要自己设 `content-type`**：必须让 fetch 自动带上带 boundary 的头，
+ * 手写 `multipart/form-data` 会丢掉 boundary，服务端直接解析失败。
+ */
+export async function authedUpload<T>(path: string, form: FormData): Promise<T> {
+  return authedFetch<T>(path, { method: 'POST', body: form, headers: {} })
 }

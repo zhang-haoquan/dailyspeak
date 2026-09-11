@@ -24,6 +24,8 @@ import type { Response } from 'express'
 function codeFromStatus(status: number): ApiErrorCode {
   switch (status) {
     case HttpStatus.BAD_REQUEST:
+    // 音频超过上传上限（Multer 抛 413）对用户来说同样是「这个请求不合规」
+    case HttpStatus.PAYLOAD_TOO_LARGE:
       return API_ERROR_CODES.BAD_REQUEST
     case HttpStatus.UNAUTHORIZED:
       return API_ERROR_CODES.UNAUTHORIZED
@@ -124,6 +126,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private normalize(exception: unknown): Normalized {
     if (exception instanceof HttpException) {
       const normalized = fromHttpException(exception)
+      // Multer 的文件大小限制会抛英文原文（"File too large"），换成中文
+      if (normalized.status === HttpStatus.PAYLOAD_TOO_LARGE) {
+        return { ...normalized, message: '音频文件过大，请重新录制' }
+      }
       // 5xx 的 HttpException 同样不把内部措辞透给客户端
       if (normalized.status >= 500) {
         return {

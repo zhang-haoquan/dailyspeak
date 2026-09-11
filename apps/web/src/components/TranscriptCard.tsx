@@ -1,18 +1,20 @@
 import { Fragment } from 'react'
-import type { WordDiff } from '@dailyspeak/shared'
+import type { TranscriptSource, WordDiff } from '@dailyspeak/shared'
+
+/** 供应商 → 界面徽章文案（必须如实标注，不允许出现「模拟 / 演示」） */
+const SOURCE_LABEL: Record<TranscriptSource, string> = {
+  'tencent-asr': '腾讯云语音识别',
+}
 
 export interface HeardResult {
   /** 转写文本 */
   text: string
-  /**
-   * 转写来源。**过渡实现**：browser=浏览器识别，mock=本地模拟。
-   * P2 接入服务端 ASR 后改为 shared 的 `TranscriptSource`（供应商名）。
-   */
-  source: 'browser' | 'mock'
+  /** 转写来源：服务端 ASR 供应商 */
+  source: TranscriptSource
   /** 词级对齐（跟读时用来对照原句） */
   alignment?: WordDiff[]
   similarity?: number
-  /** 需要提示用户的信息，例如在线识别不可用 */
+  /** 需要提示用户的信息，例如本次未打分 */
   notice?: string
 }
 
@@ -35,9 +37,7 @@ export function TranscriptCard({ heard, compareLabel, className }: TranscriptCar
     <article className={className ?? 'ds-heard-card'}>
       <div className="ds-heard-head">
         <span className="ds-eyebrow">我听到的</span>
-        <span className={`ds-asr-badge ${heard.source === 'browser' ? 'is-browser' : 'is-mock'}`}>
-          {heard.source === 'browser' ? '浏览器实时转写' : '模拟转写（演示）'}
-        </span>
+        <span className="ds-asr-badge is-browser">{SOURCE_LABEL[heard.source]}</span>
       </div>
 
       <p className="ds-heard-text">

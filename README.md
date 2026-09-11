@@ -100,9 +100,12 @@ npm run dev:api             # 后端 http://localhost:3000/api
 
 ```bash
 npm run build               # shared → web → api 全量构建
-npm test                    # 后端单测（排期算法 / 排卡算法 / 历史统计，50 项）
+npm test                    # 单测：后端 112 项 + 前端 15 项
 npm run smoke               # API 冒烟测试（鉴权 + 注册登录 + 业务接口，58 项）
 npm run auth-ui             # 浏览器端验收（认证 + 前端接真实接口，44 项）
+npm run check:providers     # AI 供应商自检：DeepSeek + 腾讯云 ASR（上线前/换密钥后跑）
+npm run score-e2e           # 真实第三方端到端评分（需传卡片 id 与两段 WAV，57 项）
+npm run learning-e2e        # 真实浏览器录音端到端（需调试 Chrome 喂假麦克风，28 项）
 npm run db:studio           # Prisma Studio 看数据
 npm run db:status           # 查看本地 Supabase 各服务地址与密钥
 npm run e2e                 # 学习主链路回归（⚠️ 认证改造后待重写，见 tools/README.md）
@@ -119,8 +122,8 @@ npm run e2e                 # 学习主链路回归（⚠️ 认证改造后待�
 | P1 S2 | Supabase Auth + 鉴权守卫 + 画像 + 前端登录 | ✅ 完成 |
 | P1 S3 | `today` / `cards/:id` / `history` 接口 + 统一错误与日志 | ✅ 完成 |
 | P1 S4 | 前端去 mock（TanStack Query + 删 localStorage 假后端） | ✅ 完成 |
-| P2 | ASR（腾讯云）+ LLM（DeepSeek）评分链路 | ⬜ 下一步 |
-| P3 | 内容管道（AI 生成 + 人工抽审） | ⬜ |
+| P2 | ASR（腾讯云）+ LLM（DeepSeek）评分链路 | ✅ 完成 |
+| P3 | 内容管道（AI 生成 + 人工抽审） | ⬜ 下一步 |
 | P4 | 边界与异常、E2E 重写、上线 | ⬜ |
 
 详见 [`docs/TODO.md`](docs/TODO.md)。

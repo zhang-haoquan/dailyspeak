@@ -15,7 +15,8 @@
     "build": "npm run build:shared && npm run build:web && npm run build:api",
     "build:web": "npm run build -w @dailyspeak/web",
     "build:api": "npm run build -w @dailyspeak/api",
-    "test": "npm run test -w @dailyspeak/api",
+    "test": "npm run test -w @dailyspeak/api && npm run test -w @dailyspeak/web",
+    "test:api": "npm run test -w @dailyspeak/api",
     "typecheck": "npm run typecheck -w @dailyspeak/shared && npm run typecheck -w @dailyspeak/web",
     "db:up": "supabase start",
     "db:down": "supabase stop",
@@ -25,7 +26,10 @@
     "db:studio": "npm run prisma:studio -w @dailyspeak/api",
     "e2e": "node tools/e2e.mjs http://localhost:5173",
     "auth-ui": "node --env-file=apps/api/.env tools/auth-ui.mjs http://localhost:5173",
-    "smoke": "node --env-file=apps/api/.env tools/api-smoke.mjs"
+    "smoke": "node --env-file=apps/api/.env tools/api-smoke.mjs",
+    "check:providers": "node --env-file=apps/api/.env tools/providers-check.mjs",
+    "score-e2e": "node --env-file=apps/api/.env tools/score-e2e.mjs",
+    "learning-e2e": "node --env-file=apps/api/.env tools/learning-e2e.mjs"
   },
   "engines": {
     "node": ">=20"

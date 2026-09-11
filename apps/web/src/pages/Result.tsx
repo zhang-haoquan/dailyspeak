@@ -1,13 +1,12 @@
 import { useMemo } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
-import { Languages, CircleCheck, CircleAlert, ArrowRight, Mic } from 'lucide-react'
+import { Languages, CircleCheck, CircleAlert, ArrowRight, Mic, TriangleAlert } from 'lucide-react'
+import type { LearningMode, RepeatScore } from '@dailyspeak/shared'
 import { ScoreRing } from '../components/ScoreRing'
 import { PlaybackButton } from '../components/PlaybackButton'
 import { ErrorPanel, LoadingPanel } from '../components/states'
 import { TranscriptCard } from '../components/TranscriptCard'
 import { useCardDetail } from '../hooks/queries'
-import type { LearningMode } from '@dailyspeak/shared'
-import type { RepeatScore } from '../services/scoring'
 
 export function ResultPage() {
   const { cardId } = useParams()
@@ -25,15 +24,19 @@ export function ResultPage() {
   const audioUrl =
     (location.state as { audioUrl?: string | null } | null)?.audioUrl ?? null
 
-  // 刷新兜底：从服务端已保存的进度恢复（只有分数，没有当时的逐词反馈）
-  const savedScore = useMemo(() => {
+  /**
+   * 刷新兜底：从服务端取回该卡的跟读分。
+   * 只有分数，没有当时的逐词反馈与转写——那些是**那一次**评测的产物，不落库也不该假装还在。
+   */
+  const savedScore = useMemo<RepeatScore | null>(() => {
     if (stateScore) return stateScore
     const stored = detail.data?.progress?.repeatScore
     if (stored == null) return null
     return {
+      degraded: false,
       score: stored,
-      feedback: [{ ok: true, text: '已记录上次跟读得分' }],
-    } as RepeatScore
+      feedback: [{ ok: true, text: '已记录上次跟读得分（逐词反馈只在当次评测中可见）' }],
+    }
   }, [stateScore, detail.data])
 
   if (detail.isPending) {
@@ -78,7 +81,9 @@ export function ResultPage() {
   }
 
   const score = savedScore.score
-  const lowScore = score < 78
+  // 降级记录没有分数：不许显示 0 分，也不许拿它参与「再来一次」的判断
+  const degraded = savedScore.degraded || score === null
+  const lowScore = score !== null && score < 78
 
   return (
     <main>
@@ -97,12 +102,19 @@ export function ResultPage() {
             练习结果
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-            跟读完成{lowScore ? ' · 建议再录一次，追求 85+ 分' : ''}
+            {degraded ? '本次已记录完成，未产生打分' : `跟读完成${lowScore ? ' · 建议再录一次，追求 85+ 分' : ''}`}
           </p>
         </header>
 
+        {degraded && (
+          <div className="ds-alert mb-8">
+            <TriangleAlert size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+            <span>{savedScore.degradedReason ?? '本次未产生打分，稍后可重测此卡'}</span>
+          </div>
+        )}
+
         <div className="flex justify-center items-start gap-8 mb-10" style={{ gap: '1.5rem' }}>
-          <ScoreRing score={score} label="发音得分" />
+          <ScoreRing score={degraded ? null : score} label={degraded ? '未打分' : '发音得分'} />
           <ScoreRing score={null} label="情境应答" />
         </div>
 
@@ -140,12 +152,12 @@ export function ResultPage() {
           )}
         </div>
 
-        {/* 我听到的：ASR 转写结果，反馈里的问题词都能在这里对上 */}
-        {savedScore.transcript && (
+        {/* 我听到的：服务端 ASR 转写结果，反馈里的问题词都能在这里对上 */}
+        {savedScore.transcript && savedScore.transcriptSource && (
           <TranscriptCard
             heard={{
               text: savedScore.transcript,
-              source: savedScore.transcriptSource ?? 'mock',
+              source: savedScore.transcriptSource,
               alignment: savedScore.alignment,
               similarity: savedScore.similarity,
             }}
@@ -164,7 +176,7 @@ export function ResultPage() {
                 // 把跟读分交接给应答页，用于展示整卡综合分（同一次练习）。
                 // 注意键名与学习页交接给本页的 `repeatScore` 不同：那个是完整结果对象，
                 // 这里只要一个数字，用不同名字避免看错类型。
-                state: { repeatScoreValue: score },
+                state: { repeatScoreValue: degraded ? null : score },
               })
             }
           >

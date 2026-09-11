@@ -12,16 +12,35 @@
   --user-data-dir="$env:TEMP\dailyspeak-chrome" `
   --window-size=1280,900 `
   --use-fake-device-for-media-stream --use-fake-ui-for-media-stream `
+  --use-file-for-fake-audio-capture="$env:TEMP\ds-repeat.wav" `
   --autoplay-policy=no-user-gesture-required `
   about:blank
 ```
 
-> `--use-fake-*` 提供假麦克风并自动授权，音频相关断言依赖它；不跑音频用例时可以去掉。
+> `--use-fake-*` 提供假麦克风并自动授权。**跑 `learning-e2e.mjs` 时必须再加
+> `--use-file-for-fake-audio-capture=<一段英文 WAV>`**，否则假麦克风是静音，
+> 服务端会如实返回「没有识别到任何内容」（400），链路断言就跑不下去。
+> 音频用 `pwsh tools/make-test-audio.ps1` 生成（见下）。
+>
 > `--autoplay-policy=...` 是必要的：脚本点击不算用户手势，否则 `audio.play()` 会被拦。
 >
 > `--user-data-dir` 一定要放在项目目录**之外**：
 > 放在项目内会被 Vite 的文件监听捕获，Chrome 每次写 Profile 都会触发整页 reload，
 > 页面永远停不下来，脚本会卡在 `Page.navigate`。
+
+## 生成测试音频
+
+```powershell
+# 跟读用（3–15 秒）：读卡片原句
+pwsh tools/make-test-audio.ps1 -Text "I am a software developer with three years of experience." -Out "$env:TEMP\ds-repeat.wav"
+
+# 应答用（30–60 秒）：读一段较长的回答
+pwsh tools/make-test-audio.ps1 -Text "<约 100 词的英文回答>" -Out "$env:TEMP\ds-answer.wav"
+```
+
+依赖 Windows 自带的 SAPI 语音合成（`Microsoft Zira`，en-US）。脚本直接以
+16kHz / 单声道 / 16-bit 输出，正好是服务端要求的格式，不用再转码。
+macOS / Linux 请用 `say -o out.aiff` 或 `espeak-ng` + `ffmpeg -ar 16000 -ac 1` 自行生成。
 
 ## 用法
 
@@ -35,6 +54,9 @@ npm run dev:web             # 前端 :5173
 | --- | --- | --- |
 | `npm run smoke` | **API 冒烟测试**：鉴权边界、注册、邮箱确认、登录、画像、卡片详情、今日快照、历史统计、错误格式（58 项） | 后端 |
 | `npm run auth-ui` | **浏览器端验收**：真登录、引导落库、刷新保持、登出，**以及前端确实在消费真实接口**（44 项） | 后端 + 前端 + Chrome |
+| `npm run check:providers` | **AI 供应商自检**：DeepSeek 对话 + 腾讯云一句话识别（7 项） | 后端 `.env` + 出网 |
+| `npm run score-e2e` | **真实第三方评分端到端**（`<cardId> <repeat.wav> <answer.wav>`，57 项） | 后端 + 两家第三方 |
+| `npm run learning-e2e` | **真实浏览器录音端到端**（`<cardId>`，28 项） | 上面全部 + 前端 + 带假音频的 Chrome |
 | `npm run e2e` | 学习主链路回归（73 项，⚠️ 待重写） | — |
 
 需要换端口时直接跑脚本并传参：
@@ -79,6 +101,42 @@ node --env-file=apps/api/.env tools/auth-ui.mjs http://localhost:5173
 这些规则不会因数据层更换而改变，是重写时的规格参照。
 
 已登记在 [`docs/TODO.md`](../docs/TODO.md) 的 S2 小节与 P4 小节。
+
+### `providers-check.mjs`（7 项，`npm run check:providers [audio.wav]`）
+
+- DeepSeek：密钥已配、发一次最小对话、**返回了非空文本**（会打印模型名与耗时）
+- 腾讯云 ASR：密钥已配、音频在 3MB 限制内、一句话识别调用成功
+  - 传音频文件：断言**识别出了非空文本**，并打印识别结果、引擎、耗时
+  - 不传：发 1 秒静音，只验证鉴权与连通（静音返回空文本是正常的）
+
+> ⚠️ 别用 `max_tokens: 8` 测「回一个词」：`deepseek-flash` / `deepseek-v4-pro` 都是推理模型，
+> 推理 token 与正文共用预算，给小了会「HTTP 200 但 content 为空」，看起来像密钥问题。
+
+### `score-e2e.mjs`（57 项，`npm run score-e2e -- <cardId> <repeat.wav> <answer.wav>`）
+
+打真实接口、再回查数据库核对，**不信任何一层自报**：
+
+- 边界：无令牌 401、缺 audio 字段 400、卡片不存在 404、时长不足 400、非 WAV 400
+- 跟读：未降级、分数 40–98、**分数可用返回的 similarity 复算**、带转写/供应商/逐词对齐/反馈
+- 落库：`repeat_score` 与接口一致、`answer_score` 仍为空、**跟读阶段不产生排期**（D-006）
+- 应答：四维齐全且 0–100、**应答分 = 四维加权可复算**、有改进建议
+- 整卡完成：`composite = 跟读×0.5 + 应答×0.5`、生成 S1 排期、到期时间为次日 00:00
+- 学习台/历史：卡片仍在今日快照里（**快照当天不变**）、步骤标记为已完成、历史分数是综合分
+- 幂等：重复提交不报错、`user_progress` 仍只有一行、**排期不会连跳阶段**
+- 静音音频：返回 400「没有识别到任何内容」，**不是伪造 40 分**
+
+### `learning-e2e.mjs`（28 项，`npm run learning-e2e -- <cardId>`）
+
+真实浏览器 + 真实录音 + 真实第三方，跑完 PRD 5.4 的完整状态流转：
+
+- 登录 → 引导 → 学习台生成今日快照（**练习前就生成**，否则已掌握的卡不会进快照）
+- 学习页录音 5 秒 → 浏览器转 16k 单声道 WAV → 上传 → 真实 ASR 打分
+- 断言：拿到服务端结果、显示「腾讯云语音识别」、**页面上没有任何「模拟 / 演示」字样**、
+  转写与原句一致、展示逐词对照与词级准确度
+- 结果页：发音得分是 40–98 的真实分数（读 `aria-label`，不靠正则猜 DOM）
+- 情境应答：录 32 秒 → 真实 DeepSeek 四维评测 → 四个维度 + 一句话建议
+- 落库：`user_progress` 两个分数与综合分自洽、排期 S1、**刷新后步骤标记依然已完成**
+- `localStorage` 里没有任何 `dailyspeak:` 数据
 
 ## 覆盖范围
 

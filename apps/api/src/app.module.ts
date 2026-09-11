@@ -10,6 +10,7 @@ import { HealthController } from './health/health.controller'
 import { HistoryModule } from './history/history.module'
 import { PrismaModule } from './prisma/prisma.module'
 import { ProfileModule } from './profile/profile.module'
+import { ScoringModule } from './scoring/scoring.module'
 import { SupabaseModule } from './supabase/supabase.module'
 import { TodayModule } from './today/today.module'
 
@@ -26,6 +27,7 @@ import { TodayModule } from './today/today.module'
     CardsModule,
     TodayModule,
     HistoryModule,
+    ScoringModule,
   ],
   controllers: [HealthController],
   providers: [

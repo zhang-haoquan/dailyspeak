@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-**P1 进行中：S1 ✅ / S2 ✅ / S3 ✅ / S4 ✅ —— P1 全部完成。**
+**P1 全部完成（S1 ✅ / S2 ✅ / S3 ✅ / S4 ✅）；P2 评分链路 ✅ 已完成。**
 
 | 项 | 结论 |
 | --- | --- |
@@ -17,17 +17,14 @@
 | 认证范围 | 只做邮箱 + 密码 → [D-015](./DECISIONS.md#d-015-认证范围只做邮箱--密码) |
 | 邮箱验证 | 走本地 Mailpit，保持开启 → D-022 |
 | Git 基线 | 已建立并推送 GitHub 私有仓库（`b98bca3`）→ [D-021](./DECISIONS.md#d-021-版本控制基线已建立) |
-| LLM 供应商 | DeepSeek（密钥已填）→ [D-012](./DECISIONS.md#d-012-llm-供应商选定-deepseek) |
-| ASR 供应商 | 腾讯云一句话识别（密钥已填）→ [D-013](./DECISIONS.md#d-013-asr-供应商选定腾讯云语音识别) |
+| LLM 供应商 | DeepSeek `deepseek-flash`（密钥已填、已实测）→ [D-012](./DECISIONS.md#d-012-llm-供应商选定-deepseek)、[D-039](./DECISIONS.md#d-039-deepseek-实际模型名与推理模型的-max_tokens-陷阱) |
+| ASR 供应商 | 腾讯云一句话识别 `16k_en`（密钥已填、已实测）→ [D-013](./DECISIONS.md#d-013-asr-供应商选定腾讯云语音识别) |
+| 音频是否落库 | **不落库**，用完即弃 → [D-017](./DECISIONS.md#d-017-音频不落库已定) |
 
-**P1 开工前的阻塞项已全部清空**，凭证区（B-2 / B-3）也已填好，
-**前端现在只跟真实接口打交道，localStorage 里不再有项目数据（P1 全部完成）**。
+**下一步是 P3（内容管道）**——目前只有 10 张种子卡，内容量是最大的短板。
 
-**下一步 P2（评分链路）之前需要你决策的**：A-6（用户录音是否落库 Supabase Storage）。
-**P3 之前**：A-5（参考音频方案，DeepSeek 无 TTS，只能用浏览器 TTS）、A-7（内容管道排期）、A-11（首发内容量）。
+**P3 之前需要你决策的**：A-5（参考音频方案）、A-7（内容管道排期）、A-11（首发内容量目标）。
 A-8（离线缓存）可与 P4 一起定。
-
-> ⚠️ 进 P2 前请先看 S4 小节末尾的「已知断层」：学习台的步骤标记要等 P2 的打分接口才会动起来。
 
 ---
 
@@ -38,7 +35,7 @@ A-8（离线缓存）可与 P4 一起定。
 - [x] **A-3** 仓库目录结构 → **monorepo A 方案**，接受搬迁 ｜ 2026-09-11 → [D-014](./DECISIONS.md#d-014-仓库结构采用-monorepo)
 - [x] **A-4** 认证范围 → **只做邮箱 + 密码** ｜ 2026-09-11 → [D-015](./DECISIONS.md#d-015-认证范围只做邮箱--密码)
 - [ ] 🟡 **A-5** 参考音频方案：浏览器 TTS vs 服务端 TTS 预生成（**P3 前定**，DeepSeek 无 TTS）→ [D-016](./DECISIONS.md#d-016-参考音频方案待确认)
-- [ ] 🟡 **A-6** 用户录音是否落库 Supabase Storage（**P2 前定**）→ [D-017](./DECISIONS.md#d-017-音频是否落库待确认)
+- [x] 🟡 **A-6** 用户录音**不落库**（用完即弃，回听只限当次会话）｜ 2026-09-11 → [D-017](./DECISIONS.md#d-017-音频不落库已定)
 - [ ] 🟡 **A-7** 内容生成管道排期：本轮做还是放 P3 → [D-018](./DECISIONS.md#d-018-内容生成管道排期待确认)
 - [ ] 🟡 **A-8** 离线缓存是否本轮做 → [D-019](./DECISIONS.md#d-019-离线缓存排期待确认)
 - [x] **A-9** 部署形态 → **自有服务器**：前端 + 后端都部署在该服务器，数据库用 Supabase 云端 ｜ 2026-09-11 → [D-020](./DECISIONS.md#d-020-部署形态自有服务器--云端-supabase)
@@ -52,9 +49,8 @@ A-8（离线缓存）可与 P4 一起定。
 ## B. 需要你提供的凭证
 
 - [x] ~~**B-1** Supabase 云端凭证~~ → 本地开发阶段无需提供（上线时再给）｜ 2026-09-11 → [D-022](./DECISIONS.md#d-022-数据库与认证先用本地-supabase)
-- [ ] 🔵 **B-2** DeepSeek API Key → `apps/api/.env` 的 `DEEPSEEK_API_KEY`（**P2 开工前提供**）
-- [ ] 🔴 **B-3** 腾讯云 API 密钥 → `apps/api/.env` 的 `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`（**P2 开工前提供**）
-      ⚠️ 是「访问密钥 → API 密钥管理」里的 **SecretId / SecretKey**，不是 AppID
+- [x] 🔵 **B-2** DeepSeek API Key → 已在 `apps/api/.env` 填好，**已实测可用**（`npm run check:providers`）｜ 2026-09-11
+- [x] 🔴 **B-3** 腾讯云 API 密钥 → 已在 `apps/api/.env` 填好，**已实测可用**（识别准确率良好）｜ 2026-09-11
 - [ ] 🔵 **B-4** 上线时：服务器域名 / SSH 信息、Supabase 云端密钥、邮件发送配置
 - [x] ~~**B-5** 短信服务商~~ → **已否决**（只做邮箱）｜ 2026-09-11
 
@@ -163,34 +159,46 @@ A-8（离线缓存）可与 P4 一起定。
 
 ---
 
-## E. P2 评分链路
+## E. P2 评分链路 ✅ 已完成（2026-09-11）
 
 ### 后端
 
-- [ ] `AsrProvider` 接口（`transcribe(audio): Promise<{ text; confidence? }>`）
-- [ ] **腾讯云 ASR 实现**：`SentenceRecognition` + `tencentcloud-sdk-nodejs-asr`，`EngSerViceType = 16k_en`、`VoiceFormat = wav`、`SourceType = 1` → D-013
-- [ ] **前端 WAV 编码工具**：MediaRecorder blob → `decodeAudioData` → 重采样 16kHz 单声道 → 16-bit PCM WAV → base64
-      - [ ] 单测：采样率转换、声道降混、WAV 头正确性、时长/体积校验
-      - [ ] ⚠️ 腾讯不支持 webm，Chrome 默认录的就是 webm，这一步不能省
-- [ ] `LlmProvider` 接口 + DeepSeek 实现（OpenAI 兼容，`base_url = https://api.deepseek.com`）→ D-012
-- [ ] 音频上传接口：multipart、**时长/体积双校验**（跟读 3–15s、应答 30–60s、Base64 后 ≤ 3MB）→ [PRD 09](./prd/PRD.md#09-边界与异常处理)
-- [ ] 词级对齐算法下沉后端（归一化 → LCS 对齐 → 相似度），含单测
-      - [ ] 覆盖「开头漏词不会带偏后续匹配」这条回归
-- [ ] `POST /api/score/repeat`：ASR → 词级比对 → 分数/反馈/`transcript`/`transcriptSource`/`alignment`/`similarity` → D-008、D-009
-- [ ] `POST /api/score/answer`：ASR → DeepSeek 四维评测（内容 40 / 语法 25 / 流利度 20 / 措辞 15）
-- [ ] 第三方超时/失败的**重试 3 次 + 降级**（降级为「仅记完成、不打分」）→ [PRD 09](./prd/PRD.md#09-边界与异常处理)
-- [ ] 提交幂等：同一 `(user_id, card_id)` 以最后一次有效提交为准 → D-006
-- [ ] 打分成功后写入 `user_progress`，整卡完成时推进 `review_schedule`
+- [x] `AsrProvider` 接口（`transcribe(audio) => { text, provider, durationMs? }`）+ DI 令牌，供应商由 `ASR_PROVIDER` 环境变量选择
+- [x] **腾讯云 ASR 实现**：`SentenceRecognition` + `tencentcloud-sdk-nodejs-asr`，`EngSerViceType = 16k_en`、`VoiceFormat = wav`、`SourceType = 1` → D-013
+- [x] `LlmProvider` 接口 + DeepSeek 实现（OpenAI 兼容，`base_url = https://api.deepseek.com`）→ D-012
+      - [x] 修掉「模型名 `deepseek-chat` 不存在」与「推理模型 `max_tokens` 给太小 → 空正文」两个坑 → D-039
+- [x] **服务端 WAV 解析**（逐块遍历，不信客户端上报时长）+ 格式/采样率/声道/时长窗口校验 → D-036
+- [x] 词级对齐算法下沉后端（归一化 → LCS 对齐 → 相似度），含单测
+      - [x] 覆盖「开头漏词不会带偏后续匹配」这条回归
+- [x] `POST /api/score/repeat`：ASR → 词级比对 → 分数/反馈/`transcript`/`transcriptSource`/`alignment`/`similarity` → D-008、D-009
+- [x] `POST /api/score/answer`：ASR → DeepSeek 四维评测（内容 40 / 语法 25 / 流利度 20 / 措辞 15）
+- [x] 第三方超时/失败的**重试 + 降级**：最多尝试 3 次、指数退避；耗尽后只记完成不打分 → D-040、D-037
+- [x] 提交幂等：同一 `(user_id, card_id)` 以最后一次有效提交为准（唯一键 + upsert）→ D-006
+- [x] 打分成功后写入 `user_progress`；整卡完成时推进 `review_schedule`（且**只在到期时推进**）→ D-038
+- [x] `tools/providers-check.mjs`：一条命令自检两家供应商（上线前/换密钥后用）
 
 ### 前端
 
-- [ ] `Learning.tsx`：录音 → `FormData` 上传 → 展示服务端返回的分数/反馈/转写/逐词对照
-- [ ] `Answer.tsx`：同上
-- [ ] `Result.tsx`：分数与反馈来自服务端
-- [ ] `TranscriptCard.tsx`：去掉「模拟转写（演示）」徽章，改为显示真实 ASR 供应商
-- [ ] 删除 `services/scoring.ts`（假打分）、`services/asr.ts`（模拟转写与错词表）、`hooks/useTranscriber.ts`
-- [ ] `useRecorder.ts`：保留（MediaRecorder 采集是真实能力），补上传与失败处理
-- [ ] 录音失败/权限拒绝的**文本输入兜底** → [PRD 09](./prd/PRD.md#09-边界与异常处理)
+- [x] **浏览器 WAV 转码**：MediaRecorder blob → `decodeAudioData` → 降混单声道 → 重采样 16k → 16-bit PCM WAV → 上传
+      - [x] 重采样优先 `OfflineAudioContext`，失败回退线性插值
+      - [x] 单测：降混、WAV 头字段、线性重采样、以及三条分支的桩测试（共 15 项）
+- [x] `Learning.tsx`：录音结束**立即**上传评测，展示服务端返回的分数/反馈/转写/逐词对照
+- [x] `Answer.tsx`：同上，展示四维分与改进建议
+- [x] `Result.tsx`：分数与反馈来自服务端；刷新后只保留分数（逐词反馈不落库）
+- [x] `TranscriptCard.tsx`：去掉「模拟转写（演示）」徽章，改为如实显示「腾讯云语音识别」
+- [x] 删除 `services/scoring.ts`（假打分）、`services/asr.ts`（模拟转写与错词表）、`hooks/useTranscriber.ts`、`types/speech.d.ts`
+- [x] `useRecorder.ts`：保留（MediaRecorder 采集是真实能力），补**自动停止上限**与上传失败处理
+- [x] 录音失败/权限拒绝的兜底：提示重试，并给出「跳过跟读（不计分）」「看参考答案」出口 → PRD 09
+
+### 验证
+
+- [x] 单测：**112 项**（排期 13 + 排卡 24 + 历史统计 13 + WAV 解析 20 + 词级对齐 15 + 评测解析与反馈 18 + 重试 9）
+- [x] 前端单测：**15 项**（vitest，含用桩覆盖 Web Audio 三条分支）
+- [x] `tools/score-e2e.mjs`：**57 项**真实第三方端到端（真 ASR + 真 DeepSeek），含边界校验、降级、幂等、排期
+- [x] `tools/learning-e2e.mjs`：**28 项**真实浏览器录音端到端（假麦克风喂真实英文语音 → 全程到落库）
+- [x] `tools/providers-check.mjs`：**7 项**供应商连通性自检
+
+> ⚠️ **P1 S4 里登记的「已知断层」已消除**：学习台的步骤标记现在会随真实打分更新。
 
 ---
 
@@ -220,6 +228,8 @@ A-8（离线缓存）可与 P4 一起定。
 ## H. 上线前检查清单（准备部署到自有服务器时执行 → D-020）
 
 - [ ] Supabase 云端项目建好，`supabase link` + `db push` 推送 schema 与 migration
+- [ ] 先在服务器上跑一遍 `npm run check:providers`：确认 DeepSeek / 腾讯云密钥**真的能用**
+      （密钥过期或权限没开，等到用户点录音才发现就晚了）
 - [ ] 服务器上配置 `apps/api/.env`：云端 `DATABASE_URL`、`SUPABASE_*`、`DEEPSEEK_API_KEY`、`TENCENT_*`
 - [ ] 前端构建产物（`npm run build:web`）由服务器 Web 服务托管
 - [ ] 后端用 pm2 / systemd 守护，开机自启、崩溃自动重启
@@ -269,8 +279,7 @@ A-8（离线缓存）可与 P4 一起定。
 - [x] 2026-09-11 修复连续天数「今天没学就归零」与「洗牌有偏」两处缺陷 → D-028 / D-031
 - [x] 2026-09-11 「最近练习」不再用跟读分或 0 分顶替降级记录 → D-029
 
-### P1 S4（前端去 mock）
-- [x] 2026-09-11 接入 TanStack Query，查询与接口封装集中（`hooks/queries.ts` + `services/endpoints.ts`）→ D-032
+### P1 S4（前端去 mock）- [x] 2026-09-11 接入 TanStack Query，查询与接口封装集中（`hooks/queries.ts` + `services/endpoints.ts`）→ D-032
 - [x] 2026-09-11 `authedFetch` 自动注入令牌；令牌刷新交给 supabase-js，不自建 401 重放 → D-033
 - [x] 2026-09-11 登出清空查询缓存，避免换号看到上一个账号的数据
 - [x] 2026-09-11 新增加载态（骨架屏）/ 错误态（带重试）/ 空态组件，五个页面全部接入
@@ -282,6 +291,19 @@ A-8（离线缓存）可与 P4 一起定。
 - [x] 2026-09-11 `tools/auth-ui.mjs` 从 25 项扩到 **44 项**：验证数据来自服务端、localStorage 无残留、错误态、告警条
 - [x] 2026-09-11 修正浏览器测试的就绪判定：整页加载会先渲染「正在恢复登录状态…」过渡页，
       原来只看 `#root` 有内容就断言，导致周期性抓到过渡页（连跑 4 次已稳定）
+
+### P2 评分链路
+- [x] 2026-09-11 `AsrProvider` / `LlmProvider` 接口 + 腾讯云与 DeepSeek 实现，供应商由环境变量选择
+- [x] 2026-09-11 实测打通两家第三方；修掉模型名错误与推理模型 `max_tokens` 空正文两个坑 → D-039
+- [x] 2026-09-11 服务端 WAV 逐块解析 + 格式/采样率/声道/时长窗口强校验 → D-036
+- [x] 2026-09-11 词级对齐算法下沉后端（含「开头漏词不带偏后续匹配」回归）
+- [x] 2026-09-11 `POST /api/score/repeat|answer`：真实打分、幂等、降级、排期推进 → D-037 / D-038
+- [x] 2026-09-11 重试口径定死为「最多尝试 3 次」+ 指数退避 → D-040
+- [x] 2026-09-11 浏览器端 WAV 转码（OfflineAudioContext 重采样 + 线性插值兜底）+ vitest 接入 → D-041
+- [x] 2026-09-11 前端接入真实评测：录音即上传，删除全部假打分与模拟转写
+- [x] 2026-09-11 新增三个验收工具：`providers-check`（7 项）、`score-e2e`（57 项）、`learning-e2e`（28 项）
+- [x] 2026-09-11 **删除 P1 S4 登记的「已知断层」**：学习台步骤标记现在随真实打分更新
+- [x] 2026-09-11 修正 `make-test-audio.ps1` 与测试工具里的同类 WAV 时长解析 bug（硬读偏移 vs 逐块遍历）
 
 ### 样式与登录（→ D-001 / D-002 / D-003）
 - [x] 2026-09-11 修复登录页 UI 错乱：根因是**工程从未安装 Tailwind**，补齐 v4 接入

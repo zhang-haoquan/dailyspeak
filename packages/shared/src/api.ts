@@ -128,19 +128,24 @@ export interface HistoryStats {
   recent: HistoryEntry[]
 }
 
-/** 音频上传约束（PRD 09 章） */
+/**
+ * 音频上传约束（PRD 09 章）
+ *
+ * 【v0.4】服务端只接受 **16kHz 单声道 16-bit PCM WAV**：
+ * 腾讯云一句话识别不支持 webm，而 Chrome 的 MediaRecorder 默认录 webm，
+ * 所以前端必须先在浏览器里转码（见 `apps/web/src/utils/wav.ts`）。
+ * 与其放宽允许列表再在服务端转码，不如把入口收紧——格式不对直接拒绝，提示明确。
+ */
 export const AUDIO_LIMITS = {
+  /** 跟读时长窗口（秒） */
   repeat: { minSeconds: 3, maxSeconds: 15 },
+  /** 情境应答时长窗口（秒） */
   answer: { minSeconds: 30, maxSeconds: 60 },
-  /** 单文件大小上限 */
-  maxBytes: 10 * 1024 * 1024,
-  /** 允许的 MIME 类型 */
-  allowedMimeTypes: [
-    'audio/webm',
-    'audio/ogg',
-    'audio/mp4',
-    'audio/mpeg',
-    'audio/wav',
-    'audio/x-m4a',
-  ],
+  /** 单文件大小上限：60 秒 16k 单声道 16-bit ≈ 1.9MB，留一倍余量 */
+  maxBytes: 5 * 1024 * 1024,
+  /** 服务端唯一接受的格式 */
+  allowedMimeTypes: ['audio/wav', 'audio/wave', 'audio/x-wav'],
+  /** 要求的采样率与声道数 */
+  targetSampleRate: 16000,
+  targetChannels: 1,
 } as const

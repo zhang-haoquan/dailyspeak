@@ -12,18 +12,22 @@ import {
   Check,
   Loader2,
   LogOut,
+  TriangleAlert,
 } from 'lucide-react'
+import { AUDIO_LIMITS, type LearningMode, type RepeatScore } from '@dailyspeak/shared'
 import { useAuth } from '../hooks/useAuth'
 import { useCardDetail } from '../hooks/queries'
 import { useRecorder, formatTime } from '../hooks/useRecorder'
-import { useTranscriber } from '../hooks/useTranscriber'
 import { useSpeech } from '../hooks/useSpeech'
 import { PlaybackButton } from '../components/PlaybackButton'
 import { ErrorPanel, LoadingPanel } from '../components/states'
 import { TranscriptCard, type HeardResult } from '../components/TranscriptCard'
-import { alignWords, mockTranscript } from '../services/asr'
-import { scoreRepeat } from '../services/scoring'
-import type { LearningMode } from '@dailyspeak/shared'
+import { api } from '../services/endpoints'
+import { ApiError } from '../services/http'
+import { encodeToWav16kMono } from '../utils/wav'
+
+/** 自动停止点比服务端上限略早，避免卡在边界上被判超限 */
+const AUTO_STOP_MS = AUDIO_LIMITS.repeat.maxSeconds * 1000 - 500
 
 export function LearningPage() {
   const { cardId } = useParams()
@@ -35,12 +39,11 @@ export function LearningPage() {
   // 卡片内容来自服务端（PRD 08：前端不持有任何内容数据）
   const detail = useCardDetail(cardId)
   const card = detail.data?.card
-  const recorder = useRecorder()
-  const transcriber = useTranscriber()
+  const recorder = useRecorder({ maxMs: AUTO_STOP_MS })
   const { speak } = useSpeech()
 
-  const [hasRecording, setHasRecording] = useState(false)
-  const [heard, setHeard] = useState<HeardResult | null>(null)
+  /** 服务端评测结果；null 表示还没拿到有效结果 */
+  const [result, setResult] = useState<RepeatScore | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -82,83 +85,65 @@ export function LearningPage() {
     )
   }
 
-  /**
-   * 拿到「我听到的」：优先用浏览器真实转写；
-   * 不支持或识别失败时用本地模拟转写兜底，并在卡片上标注来源。
-   */
-  const buildHeard = (transcript: string, durationMs: number, notice?: string): HeardResult => {
-    const real = transcript.trim()
-    const text = real || mockTranscript(card.sentence, durationMs)
-    const source: HeardResult['source'] = real ? 'browser' : 'mock'
-    const align = alignWords(card.sentence, text)
-    return {
-      text,
-      source,
-      alignment: align.words,
-      similarity: align.similarity,
-      notice,
+  /** 录音结束立刻上传评测：PRD 5.4 要求「录音结束后」就能看到「我听到的」 */
+  const submitRecording = async (blob: Blob) => {
+    setSubmitting(true)
+    setError(null)
+    try {
+      // 腾讯云不认 webm，必须先转成 16kHz 单声道 WAV（PRD 09 音频约束）
+      const clip = await encodeToWav16kMono(blob)
+      const scored = await api.scoreRepeat(card.id, clip.blob)
+      setResult(scored)
+    } catch (err) {
+      setResult(null)
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : '评测失败，请重试',
+      )
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleMicClick = async () => {
     setError(null)
     if (recorder.recording) {
-      // 注意：recorder.elapsedMs 是上一次渲染的快照，必须用 stop() 的返回值
       const clip = await recorder.stop()
-      const transcript = await transcriber.stop()
-      setHasRecording(true)
-      setHeard(buildHeard(transcript, clip?.durationMs ?? 0, transcriber.error ?? undefined))
+      if (clip) await submitRecording(clip.blob)
     } else {
-      setHasRecording(false)
-      setHeard(null)
-      transcriber.start()
+      setResult(null)
       await recorder.start()
     }
   }
 
   const resetRecording = () => {
     recorder.cancel()
-    transcriber.abort()
-    setHasRecording(false)
-    setHeard(null)
-  }
-
-  const handleSubmit = async () => {
-    if (!hasRecording || submitting) return
-    setSubmitting(true)
-    try {
-      // TODO(P2)：现在仍是本地评测，分数不会上传；等服务端 ASR 就绪后改为上传录音
-      const result = await scoreRepeat(
-        card,
-        recorder.elapsedMs || 3000,
-        heard?.text,
-        heard?.source,
-      )
-      // 把回听地址与转写结果交给结果页，方便对照反馈复听
-      const audioUrl = recorder.handoff()
-      navigate(`/result/${card.id}?mode=${mode}`, {
-        state: { repeatScore: result, mode, audioUrl },
-      })
-    } catch {
-      setError('评测服务暂时不可用，请稍后重试')
-      setSubmitting(false)
-    }
-  }
-
-  /** PRD 09：无麦克风/权限被拒时的兜底——不录音，直接看参考答案与流程 */
-  const handleSkip = async () => {
-    if (submitting) return
-    setSubmitting(true)
+    setResult(null)
     setError(null)
-    try {
-      const result = await scoreRepeat(card, 3000)
-      navigate(`/result/${card.id}?mode=${mode}`, {
-        state: { repeatScore: result, mode, audioUrl: recorder.handoff() },
-      })
-    } catch {
-      setError('评测服务暂时不可用，请稍后重试')
-      setSubmitting(false)
-    }
+  }
+
+  /** 录音已完成（无论打分成功与否） */
+  const hasRecording = recorder.audioUrl !== null && !recorder.recording
+
+  const heard: HeardResult | null =
+    result && result.transcript && result.transcriptSource
+      ? {
+          text: result.transcript,
+          source: result.transcriptSource,
+          alignment: result.alignment,
+          similarity: result.similarity,
+          notice: result.degraded ? result.degradedReason : undefined,
+        }
+      : null
+
+  const handleFinish = () => {
+    if (!result) return
+    navigate(`/result/${card.id}?mode=${mode}`, {
+      state: { repeatScore: result, mode, audioUrl: recorder.handoff() },
+    })
   }
 
   return (
@@ -224,7 +209,10 @@ export function LearningPage() {
             }}
           >
             <Volume2 size={14} />
-            <span>点击下方录音按钮，模仿原音大声跟读</span>
+            <span>
+              点击下方录音按钮，模仿原音大声跟读（
+              {AUDIO_LIMITS.repeat.minSeconds}–{AUDIO_LIMITS.repeat.maxSeconds} 秒）
+            </span>
           </div>
         </article>
 
@@ -232,29 +220,29 @@ export function LearningPage() {
           <p className="ds-instruction">
             {recorder.recording
               ? '录音中，请大声跟读…'
-              : hasRecording
-                ? '已录音，可回听、查看识别结果或直接完成'
-                : '点击录音，大声跟读'}
+              : submitting
+                ? '正在评测…'
+                : hasRecording
+                  ? result?.degraded
+                    ? '已录音，本次未产生打分'
+                    : '已录音，可回听、查看识别结果或直接完成'
+                  : '点击录音，大声跟读'}
           </p>
           <button
             className={`ds-mic-btn${recorder.recording ? ' is-recording' : ''}`}
             aria-label={recorder.recording ? '停止录音' : '开始录音'}
             type="button"
             onClick={handleMicClick}
+            disabled={submitting}
           >
             <span className="ds-mic-ring" aria-hidden="true" />
             {recorder.recording ? <Check size={36} /> : <Mic size={36} />}
           </button>
           <div className="ds-timer">{formatTime(recorder.elapsedMs)}</div>
-          {recorder.recording && transcriber.listening && (
-            <p className="ds-heard-live">
-              识别中…{transcriber.interim ? `「${transcriber.interim}」` : ''}
-            </p>
-          )}
+
           {/* 回听自己的发音：录音完成后可反复播放，对照原声找差距 */}
-          {!recorder.recording && (
-            <PlaybackButton src={recorder.audioUrl} />
-          )}
+          {!recorder.recording && <PlaybackButton src={recorder.audioUrl} />}
+
           {recorder.recording && (
             <div className="ds-rec-status">
               <span className="ds-dots" aria-hidden="true">
@@ -265,36 +253,53 @@ export function LearningPage() {
               <span>录音中...</span>
             </div>
           )}
+
+          {recorder.autoStopped && (
+            <p className="ds-heard-notice">
+              已到 {AUDIO_LIMITS.repeat.maxSeconds} 秒上限，自动停止录音
+            </p>
+          )}
+
+          {/* 降级说明：第三方不可用时如实告知「本次不打分」，不伪造分数 */}
+          {result?.degraded && (
+            <div className="ds-alert" style={{ marginTop: '1rem' }}>
+              <TriangleAlert size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+              <span>{result.degradedReason ?? '本次未产生打分'}</span>
+            </div>
+          )}
+
           {recorder.error && (
-            <p className="text-sm mt-3 px-4 py-3 rounded-lg" style={{ background: 'var(--state-error-surface)', color: 'var(--state-error)' }}>
+            <p
+              className="text-sm mt-3 px-4 py-3 rounded-lg"
+              style={{ background: 'var(--state-error-surface)', color: 'var(--state-error)' }}
+            >
               {recorder.error}
             </p>
           )}
           {!recorder.supported && (
-            <p className="text-sm mt-3 px-4 py-3 rounded-lg" style={{ background: 'var(--state-error-surface)', color: 'var(--state-error)' }}>
-              当前浏览器不支持录音，请使用 Chrome / Edge / Safari 最新版，或点击下方「跳过录音」查看流程。
+            <p
+              className="text-sm mt-3 px-4 py-3 rounded-lg"
+              style={{ background: 'var(--state-error-surface)', color: 'var(--state-error)' }}
+            >
+              当前浏览器不支持录音，请使用 Chrome / Edge / Safari 最新版。
+              <br />
+              没有麦克风也可以直接看原句与中文释义练习，本次不计分。
             </p>
           )}
-          {!hasRecording && !recorder.recording && (
-            <button
-              type="button"
-              className="ds-link-muted"
-              style={{ marginTop: '1rem', background: 'none', border: 'none', fontSize: '0.8rem' }}
-              onClick={handleSkip}
-              disabled={submitting}
-            >
-              没有麦克风？跳过录音，直接完成跟读
-            </button>
-          )}
           {error && (
-            <p className="text-sm mt-3 px-4 py-3 rounded-lg" style={{ background: 'var(--state-error-surface)', color: 'var(--state-error)' }}>
+            <p
+              className="text-sm mt-3 px-4 py-3 rounded-lg"
+              style={{ background: 'var(--state-error-surface)', color: 'var(--state-error)' }}
+            >
               {error}
             </p>
           )}
         </section>
 
-        {/* 我听到的：把用户说的话转成文本回显，并逐词对照原句（PRD 06 章） */}
-        {heard && !recorder.recording && <TranscriptCard heard={heard} compareLabel="对比原句" />}
+        {/* 我听到的：服务端 ASR 转写 + 逐词对照原句（PRD 5.4 v0.2） */}
+        {heard && !recorder.recording && (
+          <TranscriptCard heard={heard} compareLabel="对比原句" />
+        )}
       </div>
 
       <div className="ds-bottom">
@@ -306,18 +311,27 @@ export function LearningPage() {
           <button
             className="ds-btn-ghost"
             type="button"
-            disabled={!hasRecording && !recorder.recording}
+            disabled={!hasRecording}
             onClick={resetRecording}
-            style={!hasRecording && !recorder.recording ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+            style={!hasRecording ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
           >
             <RotateCcw size={16} />
             重录
           </button>
+          {/* PRD 09：录音失败/权限被拒时允许不录音直接过（不计分，不伪造分数） */}
+          <Link
+            to="/"
+            className="ds-btn-ghost"
+            style={{ textDecoration: 'none' }}
+            title="本次不计分，卡片会留在今日任务里"
+          >
+            跳过跟读（不计分）
+          </Link>
           <button
             className="ds-btn-primary"
             type="button"
-            disabled={!hasRecording || submitting}
-            onClick={handleSubmit}
+            disabled={!result || submitting}
+            onClick={handleFinish}
           >
             {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
             {submitting ? 'AI 评测中…' : '完成'}

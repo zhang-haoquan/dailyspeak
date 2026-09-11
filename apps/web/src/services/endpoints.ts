@@ -6,14 +6,24 @@
  * 令牌注入与错误转换在 `http.ts`。
  */
 import type {
+  AnswerScore,
   CardDetail,
   Domain,
   HistoryStats,
   MeResponse,
+  RepeatScore,
   TodayPlanResponse,
   UserProfile,
 } from '@dailyspeak/shared'
-import { authedFetch } from './http'
+import { authedFetch, authedUpload } from './http'
+
+/** 把 WAV 与卡片 id 拼成服务端要的 multipart（字段名必须与 @UseInterceptors 一致） */
+function scoreForm(cardId: string, audio: Blob): FormData {
+  const form = new FormData()
+  form.append('audio', audio, `${cardId}.wav`)
+  form.append('cardId', cardId)
+  return form
+}
 
 export const api = {
   /** 当前用户 + 画像 */
@@ -31,4 +41,12 @@ export const api = {
   /** 保存学习计划（PRD 5.2） */
   saveProfile: (domains: Domain[], dailyCount: number) =>
     authedFetch<UserProfile>('/profile', { method: 'PUT', body: { domains, dailyCount } }),
+
+  /** 跟读评测：上传 16kHz 单声道 WAV，返回分数/反馈/转写/逐词对照 */
+  scoreRepeat: (cardId: string, audio: Blob) =>
+    authedUpload<RepeatScore>('/score/repeat', scoreForm(cardId, audio)),
+
+  /** 情境应答评测：上传录音，返回四维分与改进建议 */
+  scoreAnswer: (cardId: string, audio: Blob) =>
+    authedUpload<AnswerScore>('/score/answer', scoreForm(cardId, audio)),
 }

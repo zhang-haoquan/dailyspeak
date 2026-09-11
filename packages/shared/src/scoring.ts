@@ -3,10 +3,18 @@
  *
  * 跟读分完全由 ASR 转写与原句的词级相似度决定（权重 100%，见 docs/DECISIONS.md D-008），
  * 因此跟读结果里必须带上转写与逐词对齐，前端才能渲染「我听到的」与逐词对照（D-009）。
+ *
+ * 【v0.4】第三方不可用时**不允许伪造分数**（PRD 09 / D-010）：
+ * `score` 因此是可空的，降级时一律为 `null`，由 `degraded` 明确标记。
+ * 前端见到 `score === null` 必须显示「未打分」。
  */
 
-/** ASR 转写来源，界面上要如实标注，不允许用模拟文本顶替 */
-export type TranscriptSource = 'whisper-local' | 'qwen-paraformer' | 'volcengine-asr' | 'xfyun-asr'
+/**
+ * ASR 转写来源，界面上要如实标注。
+ * 当前供应商是腾讯云（D-013）；**接入新供应商时在这里加一项**，
+ * 前端按这个值显示徽章，不要用「模拟 / 演示」之类的假来源。
+ */
+export type TranscriptSource = 'tencent-asr'
 
 /** 逐词对齐结果 */
 export interface WordDiff {
@@ -25,7 +33,12 @@ export interface ScoreFeedback {
 
 /** 跟读打分结果 */
 export interface RepeatScore {
-  score: number
+  /** 是否因第三方不可用而降级：只记完成、不产生打分（PRD 09） */
+  degraded: boolean
+  /** 跟读分；**降级时为 null**，前端必须显示「未打分」而不是 0 分 */
+  score: number | null
+  /** 降级原因，直接展示给用户 */
+  degradedReason?: string
   feedback: ScoreFeedback[]
   /** ASR 转写文本（「我听到的」） */
   transcript?: string
@@ -35,8 +48,6 @@ export interface RepeatScore {
   alignment?: WordDiff[]
   /** 词级相似度 0–1 */
   similarity?: number
-  /** 是否因第三方失败而只记完成、未打分（PRD 09 章降级） */
-  degraded?: boolean
 }
 
 /** 应答评测的四个维度（PRD 06 章权重：内容 40 / 语法 25 / 流利度 20 / 措辞 15） */
@@ -49,15 +60,19 @@ export interface AnswerDimensions {
 
 /** 应答打分结果 */
 export interface AnswerScore {
-  score: number
-  dimensions: AnswerDimensions
+  /** 是否因第三方不可用而降级：只记完成、不产生打分 */
+  degraded: boolean
+  /** 应答分；**降级时为 null** */
+  score: number | null
+  /** 降级原因，直接展示给用户 */
+  degradedReason?: string
+  /** 降级时维度分可能整块缺失 */
+  dimensions?: AnswerDimensions
   feedback: ScoreFeedback[]
   /** 一句话改进建议 */
-  suggestion: string
+  suggestion?: string
   transcript?: string
   transcriptSource?: TranscriptSource
-  /** 是否因第三方失败而只记完成、未打分 */
-  degraded?: boolean
 }
 
 /** 评测环节 */
