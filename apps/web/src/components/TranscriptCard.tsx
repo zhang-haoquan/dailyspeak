@@ -1,10 +1,13 @@
 import { Fragment } from 'react'
-import type { WordDiff } from '../types'
+import type { WordDiff } from '@dailyspeak/shared'
 
 export interface HeardResult {
   /** 转写文本 */
   text: string
-  /** 转写来源：browser=浏览器真实识别，mock=本地模拟 */
+  /**
+   * 转写来源。**过渡实现**：browser=浏览器识别，mock=本地模拟。
+   * P2 接入服务端 ASR 后改为 shared 的 `TranscriptSource`（供应商名）。
+   */
   source: 'browser' | 'mock'
   /** 词级对齐（跟读时用来对照原句） */
   alignment?: WordDiff[]

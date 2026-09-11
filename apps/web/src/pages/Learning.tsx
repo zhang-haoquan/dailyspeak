@@ -14,23 +14,27 @@ import {
   LogOut,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useCardDetail } from '../hooks/queries'
 import { useRecorder, formatTime } from '../hooks/useRecorder'
 import { useTranscriber } from '../hooks/useTranscriber'
 import { useSpeech } from '../hooks/useSpeech'
 import { PlaybackButton } from '../components/PlaybackButton'
+import { ErrorPanel, LoadingPanel } from '../components/states'
 import { TranscriptCard, type HeardResult } from '../components/TranscriptCard'
-import * as api from '../services/api'
 import { alignWords, mockTranscript } from '../services/asr'
 import { scoreRepeat } from '../services/scoring'
+import type { LearningMode } from '@dailyspeak/shared'
 
 export function LearningPage() {
   const { cardId } = useParams()
   const [searchParams] = useSearchParams()
-  const mode = (searchParams.get('mode') as 'new' | 'review') || 'new'
+  const mode: LearningMode = searchParams.get('mode') === 'review' ? 'review' : 'new'
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { logout } = useAuth()
 
-  const card = api.getCardById(cardId ?? '')
+  // 卡片内容来自服务端（PRD 08：前端不持有任何内容数据）
+  const detail = useCardDetail(cardId)
+  const card = detail.data?.card
   const recorder = useRecorder()
   const transcriber = useTranscriber()
   const { speak } = useSpeech()
@@ -39,6 +43,31 @@ export function LearningPage() {
   const [heard, setHeard] = useState<HeardResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  if (detail.isPending) {
+    return (
+      <div className="ds-center-page">
+        <div className="ds-card" style={{ maxWidth: 360, width: '100%' }}>
+          <LoadingPanel label="正在加载卡片…" />
+        </div>
+      </div>
+    )
+  }
+
+  if (detail.isError) {
+    return (
+      <div className="ds-center-page">
+        <div style={{ maxWidth: 360, width: '100%' }}>
+          <ErrorPanel error={detail.error} onRetry={() => void detail.refetch()} />
+          <div className="text-center mt-4">
+            <Link to="/" className="ds-link-primary">
+              返回学习台
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!card) {
     return (
@@ -95,17 +124,16 @@ export function LearningPage() {
   }
 
   const handleSubmit = async () => {
-    if (!hasRecording || submitting || !user) return
+    if (!hasRecording || submitting) return
     setSubmitting(true)
     try {
-      // 模拟上传录音 → 后端评测（PRD 06 章）
+      // TODO(P2)：现在仍是本地评测，分数不会上传；等服务端 ASR 就绪后改为上传录音
       const result = await scoreRepeat(
         card,
         recorder.elapsedMs || 3000,
         heard?.text,
         heard?.source,
       )
-      api.submitRepeatScore(user.id, card.id, result.score, mode)
       // 把回听地址与转写结果交给结果页，方便对照反馈复听
       const audioUrl = recorder.handoff()
       navigate(`/result/${card.id}?mode=${mode}`, {
@@ -117,14 +145,13 @@ export function LearningPage() {
     }
   }
 
-  /** PRD 09：无麦克风/权限被拒时的兜底——不录音直接模拟完成 */
+  /** PRD 09：无麦克风/权限被拒时的兜底——不录音，直接看参考答案与流程 */
   const handleSkip = async () => {
-    if (submitting || !user) return
+    if (submitting) return
     setSubmitting(true)
     setError(null)
     try {
       const result = await scoreRepeat(card, 3000)
-      api.submitRepeatScore(user.id, card.id, result.score, mode)
       navigate(`/result/${card.id}?mode=${mode}`, {
         state: { repeatScore: result, mode, audioUrl: recorder.handoff() },
       })

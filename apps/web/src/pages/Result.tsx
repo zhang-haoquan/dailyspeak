@@ -3,16 +3,21 @@ import { useLocation, useNavigate, useParams, useSearchParams, Link } from 'reac
 import { Languages, CircleCheck, CircleAlert, ArrowRight, Mic } from 'lucide-react'
 import { ScoreRing } from '../components/ScoreRing'
 import { PlaybackButton } from '../components/PlaybackButton'
+import { ErrorPanel, LoadingPanel } from '../components/states'
 import { TranscriptCard } from '../components/TranscriptCard'
-import * as api from '../services/api'
-import type { RepeatScore } from '../types'
+import { useCardDetail } from '../hooks/queries'
+import type { LearningMode } from '@dailyspeak/shared'
+import type { RepeatScore } from '../services/scoring'
 
 export function ResultPage() {
   const { cardId } = useParams()
   const [searchParams] = useSearchParams()
-  const mode = (searchParams.get('mode') as 'new' | 'review') || 'new'
+  const mode: LearningMode = searchParams.get('mode') === 'review' ? 'review' : 'new'
   const navigate = useNavigate()
   const location = useLocation()
+
+  const detail = useCardDetail(cardId)
+  const card = detail.data?.card
 
   const stateScore = (location.state as { repeatScore?: RepeatScore; audioUrl?: string | null } | null)
     ?.repeatScore
@@ -20,20 +25,41 @@ export function ResultPage() {
   const audioUrl =
     (location.state as { audioUrl?: string | null } | null)?.audioUrl ?? null
 
-  // 刷新兜底：从已保存进度恢复
+  // 刷新兜底：从服务端已保存的进度恢复（只有分数，没有当时的逐词反馈）
   const savedScore = useMemo(() => {
     if (stateScore) return stateScore
-    const user = api.getSessionUser()
-    if (!user || !cardId) return null
-    const p = api.getCardProgress(user.id, cardId)
-    if (!p?.repeatScore) return null
+    const stored = detail.data?.progress?.repeatScore
+    if (stored == null) return null
     return {
-      score: p.repeatScore,
+      score: stored,
       feedback: [{ ok: true, text: '已记录上次跟读得分' }],
     } as RepeatScore
-  }, [stateScore, cardId])
+  }, [stateScore, detail.data])
 
-  const card = api.getCardById(cardId ?? '')
+  if (detail.isPending) {
+    return (
+      <div className="ds-center-page">
+        <div className="ds-card" style={{ maxWidth: 360, width: '100%' }}>
+          <LoadingPanel label="正在加载结果…" />
+        </div>
+      </div>
+    )
+  }
+
+  if (detail.isError) {
+    return (
+      <div className="ds-center-page">
+        <div style={{ maxWidth: 360, width: '100%' }}>
+          <ErrorPanel error={detail.error} onRetry={() => void detail.refetch()} />
+          <div className="text-center mt-4">
+            <Link to="/" className="ds-link-primary">
+              返回学习台
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!savedScore || !card) {
     return (
@@ -132,7 +158,15 @@ export function ResultPage() {
           <button
             className="ds-btn-primary"
             style={{ padding: '14px 32px', fontSize: 16 }}
-            onClick={() => navigate(`/learn/${card.id}/answer?mode=${mode}`)}
+            onClick={() =>
+              navigate(`/learn/${card.id}/answer?mode=${mode}`, {
+                replace: true,
+                // 把跟读分交接给应答页，用于展示整卡综合分（同一次练习）。
+                // 注意键名与学习页交接给本页的 `repeatScore` 不同：那个是完整结果对象，
+                // 这里只要一个数字，用不同名字避免看错类型。
+                state: { repeatScoreValue: score },
+              })
+            }
           >
             <span>进入情境应答</span>
             <ArrowRight size={20} />

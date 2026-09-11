@@ -70,6 +70,18 @@ export const ANSWER_DIMENSION_WEIGHTS: Readonly<Record<keyof AnswerDimensions, n
   vocabulary: 0.15,
 } as const
 
+/** 综合分权重：跟读与应答各占一半（PRD 5.5） */
+export const REPEAT_WEIGHT = 0.5
+export const ANSWER_WEIGHT = 0.5
+
+/**
+ * 综合分 = 跟读 × 0.5 + 应答 × 0.5（PRD 5.5）。
+ * 排期推进与历史展示都用它，所以放在 shared，前后端与各处展示只保留这一份口径。
+ */
+export function compositeScore(repeatScore: number, answerScore: number): number {
+  return Math.round(repeatScore * REPEAT_WEIGHT + answerScore * ANSWER_WEIGHT)
+}
+
 /**
  * 词级相似度 → 跟读分。
  * 100% 词准 ≈ 98 分；约 72% 词准 ≈ 85 分（PASS_THRESHOLD）；0% ≈ 52 分。

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, Link } from 'react-router-dom'
 import {
   Languages,
   ArrowLeft,
@@ -13,17 +13,17 @@ import {
   CircleAlert,
   Home,
 } from 'lucide-react'
-import { useAuth } from '../hooks/useAuth'
+import { useCardDetail } from '../hooks/queries'
+import { compositeScore } from '@dailyspeak/shared'
 import { useRecorder, formatTime } from '../hooks/useRecorder'
 import { useTranscriber } from '../hooks/useTranscriber'
 import { useSpeech } from '../hooks/useSpeech'
-import * as api from '../services/api'
-import { scoreAnswer } from '../services/scoring'
+import { scoreAnswer, type AnswerScore } from '../services/scoring'
 import { ScoreRing } from '../components/ScoreRing'
 import { PlaybackButton } from '../components/PlaybackButton'
+import { ErrorPanel, LoadingPanel } from '../components/states'
 import { TranscriptCard, type HeardResult } from '../components/TranscriptCard'
 import { mockTranscript } from '../services/asr'
-import type { AnswerScore } from '../types'
 
 const DIMENSION_LABELS: Record<keyof AnswerScore['dimensions'], string> = {
   content: '内容正确性',
@@ -34,12 +34,11 @@ const DIMENSION_LABELS: Record<keyof AnswerScore['dimensions'], string> = {
 
 export function AnswerPage() {
   const { cardId } = useParams()
-  const [searchParams] = useSearchParams()
-  const mode = (searchParams.get('mode') as 'new' | 'review') || 'new'
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const location = useLocation()
 
-  const card = api.getCardById(cardId ?? '')
+  const detail = useCardDetail(cardId)
+  const card = detail.data?.card
   const recorder = useRecorder()
   const transcriber = useTranscriber()
   const { speak } = useSpeech()
@@ -50,8 +49,35 @@ export function AnswerPage() {
   const [result, setResult] = useState<AnswerScore | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // 跟读分（来自进度记录）
-  const repeatScore = card && user ? api.getCardProgress(user.id, card.id)?.repeatScore ?? null : null
+  // 跟读分：优先取结果页交接过来的（同一次练习），刷新兜底才回服务端进度
+  const handedRepeatScore = (location.state as { repeatScoreValue?: number } | null)
+    ?.repeatScoreValue
+  const repeatScore = handedRepeatScore ?? detail.data?.progress?.repeatScore ?? null
+
+  if (detail.isPending) {
+    return (
+      <div className="ds-center-page">
+        <div className="ds-card" style={{ maxWidth: 360, width: '100%' }}>
+          <LoadingPanel label="正在加载卡片…" />
+        </div>
+      </div>
+    )
+  }
+
+  if (detail.isError) {
+    return (
+      <div className="ds-center-page">
+        <div style={{ maxWidth: 360, width: '100%' }}>
+          <ErrorPanel error={detail.error} onRetry={() => void detail.refetch()} />
+          <div className="text-center mt-4">
+            <Link to="/" className="ds-link-primary">
+              返回学习台
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!card) {
     return (
@@ -125,9 +151,8 @@ export function AnswerPage() {
 
   /** 完成整卡：归档 + 排复习（PRD 5.4 状态流转） */
   const handleFinish = () => {
-    if (!user) return
-    const repeat = repeatScore ?? 80
-    api.submitAnswerScore(user.id, card.id, repeat, result?.score ?? 80, mode)
+    // TODO(P2)：这里应当提交应答分并由服务端推进复习排期；
+    // 打分接口尚不存在，所以只做跳转，**不伪造落库**（PRD 09 / D-010）
     navigate('/', { replace: true })
   }
 
@@ -154,9 +179,22 @@ export function AnswerPage() {
             </p>
           </header>
 
-          <div className="flex justify-center mb-10">
+          <div className="flex justify-center mb-6">
             <ScoreRing score={result.score} label="应答综合分" />
           </div>
+
+          {/* 整卡的两步分与综合分：跟读分由结果页交接过来（同一次练习） */}
+          {repeatScore !== null && (
+            <p
+              className="text-sm text-center mb-10"
+              style={{ color: 'var(--muted-foreground)' }}
+            >
+              跟读 {repeatScore} 分 · 应答 {result.score} 分 ·{' '}
+              <strong style={{ color: 'var(--foreground)' }}>
+                综合 {compositeScore(repeatScore, result.score)} 分
+              </strong>
+            </p>
+          )}
 
           <div className="feedback-card mb-6">
             <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>

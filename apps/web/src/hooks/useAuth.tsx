@@ -7,14 +7,10 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { AuthUser, Domain, UserProfile } from '@dailyspeak/shared'
+import { useQueryClient } from '@tanstack/react-query'
+import type { AuthUser, Domain, MeResponse, UserProfile } from '@dailyspeak/shared'
 import { supabase } from '../services/supabase'
-import { apiFetch } from '../services/http'
-
-export interface MeResponse {
-  user: AuthUser
-  profile: UserProfile
-}
+import { authedFetch } from '../services/http'
 
 export type AuthResult =
   | { ok: true; needsEmailConfirmation: boolean }
@@ -51,12 +47,13 @@ export function translateAuthError(message: string): string {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<AuthUser | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
 
-  const loadMe = useCallback(async (token: string): Promise<void> => {
-    const me = await apiFetch<MeResponse>('/auth/me', { token })
+  const loadMe = useCallback(async (): Promise<void> => {
+    const me = await authedFetch<MeResponse>('/auth/me')
     setUser(me.user)
     setProfile(me.profile)
   }, [])
@@ -80,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      void loadMe(session.access_token)
+      void loadMe()
         .catch(() => clear())
         .finally(() => {
           if (!cancelled) setLoading(false)
@@ -103,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 主动加载一次，避免路由跳转时 profile 尚未就绪
       if (data.session) {
-        await loadMe(data.session.access_token).catch(() => undefined)
+        await loadMe().catch(() => undefined)
       }
       return { ok: true, needsEmailConfirmation: false }
     },
@@ -120,30 +117,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async (): Promise<void> => {
     await supabase.auth.signOut()
+    // 清掉上一个账号的缓存，否则换号登录会先看到别人的今日任务/学习记录
+    queryClient.clear()
     clear()
-  }, [clear])
+  }, [clear, queryClient])
 
-  const saveProfile = useCallback(async (domains: Domain[], dailyCount: number): Promise<void> => {
-    const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
-    if (!token) throw new Error('登录状态已失效，请重新登录')
-
-    const saved = await apiFetch<UserProfile>('/profile', {
-      method: 'PUT',
-      token,
-      body: { domains, dailyCount },
-    })
-    setProfile(saved)
-  }, [])
+  const saveProfile = useCallback(
+    async (domains: Domain[], dailyCount: number): Promise<void> => {
+      const saved = await authedFetch<UserProfile>('/profile', {
+        method: 'PUT',
+        body: { domains, dailyCount },
+      })
+      setProfile(saved)
+      // 学习计划变了，服务端会作废今日快照；前端缓存也要跟着失效
+      await queryClient.invalidateQueries({ queryKey: ['today'] })
+    },
+    [queryClient],
+  )
 
   const reload = useCallback(async (): Promise<void> => {
-    const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
-    if (!token) {
-      clear()
-      return
-    }
-    await loadMe(token).catch(() => clear())
+    await loadMe().catch(() => clear())
   }, [loadMe, clear])
 
   const value = useMemo(

@@ -108,8 +108,9 @@
   --state-error-surface: #fef2f2;
   --state-error-foreground: #ffffff;
 
-  --state-warning: #f59e0b;
+  --state-warning: #b45309;
   --state-warning-surface: #fffbeb;
+  --state-warning-border: #fde68a;
 
   /* ---- 渐变 ---- */
   --gradient-primary: linear-gradient(135deg, #3b82f6, #10b981);
@@ -986,6 +987,98 @@ a {
   justify-content: center;
   background: var(--gradient-soft);
   padding: 24px;
+}
+
+/* ---------- 加载态 / 错误态 / 空态 ---------- */
+.ds-state-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+.ds-state-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+.ds-state-hint {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  margin: 0;
+  max-width: 26rem;
+}
+
+/* 骨架屏 */
+.ds-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    color-mix(in oklab, var(--muted) 55%, white) 37%,
+    var(--muted) 63%
+  );
+  background-size: 400% 100%;
+  animation: ds-skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+.ds-skeleton-chip {
+  width: 5rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  margin-bottom: 0.75rem;
+}
+.ds-skeleton-line {
+  height: 1rem;
+  margin-bottom: 0.625rem;
+}
+.ds-skeleton-btn {
+  width: 7rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  margin-top: 0.5rem;
+}
+@keyframes ds-skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-skeleton {
+    animation: none;
+  }
+}
+
+/* 内容不足告警条 */
+.ds-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: var(--state-warning-surface);
+  border: 1px solid var(--state-warning-border);
+  color: var(--state-warning);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+/* 未打分（降级）记录的分数位，视觉上明显弱于真实分数 */
+.ds-score-empty {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 /* 响应式 */

@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-**P1 进行中：S1 ✅ / S2 ✅ / S3 ✅ / S4 ⬜。**
+**P1 进行中：S1 ✅ / S2 ✅ / S3 ✅ / S4 ✅ —— P1 全部完成。**
 
 | 项 | 结论 |
 | --- | --- |
@@ -21,11 +21,13 @@
 | ASR 供应商 | 腾讯云一句话识别（密钥已填）→ [D-013](./DECISIONS.md#d-013-asr-供应商选定腾讯云语音识别) |
 
 **P1 开工前的阻塞项已全部清空**，凭证区（B-2 / B-3）也已填好，
-**可以直接进 S4（前端去 mock）**。
+**前端现在只跟真实接口打交道，localStorage 里不再有项目数据（P1 全部完成）**。
 
-**P2 之前需要你决策的**：A-6（用户录音是否落库 Supabase Storage）。
-**P3 之前**：A-5（参考音频方案）、A-7（内容管道排期）、A-11（首发内容量）。
+**下一步 P2（评分链路）之前需要你决策的**：A-6（用户录音是否落库 Supabase Storage）。
+**P3 之前**：A-5（参考音频方案，DeepSeek 无 TTS，只能用浏览器 TTS）、A-7（内容管道排期）、A-11（首发内容量）。
 A-8（离线缓存）可与 P4 一起定。
+
+> ⚠️ 进 P2 前请先看 S4 小节末尾的「已知断层」：学习台的步骤标记要等 P2 的打分接口才会动起来。
 
 ---
 
@@ -131,20 +133,33 @@ A-8（离线缓存）可与 P4 一起定。
 > 这不是忘了接，是接口还不存在——本地那套假打分不会上传。
 > 学习页/应答页/结果页仍走本地评测（`services/scoring.ts` + `services/asr.ts`），P2 一并删除。
 
-### S4 前端去 mock
+### S4 前端去 mock ✅ 已完成（2026-09-11）
 
-- [ ] 引入 **TanStack Query**（`QueryClientProvider` + 查询封装），统一处理加载/错误/重试/缓存 → PRD 08
-- [ ] 新增 `services/endpoints.ts`：`today()` / `history()` / `card(id)`，自动注入令牌
-- [ ] 删除 `services/api.ts`（localStorage 假后端）、`services/storage.ts`
-- [ ] 删除 `data/cards.ts`（硬编码 10 张种子卡，内容改由 `GET /api/today`、`GET /api/cards/:id` 下发）
-- [ ] 删除 `services/review.ts`（排期已下沉后端，前端只需要 shared 的 `stageInfo`）
-- [ ] 删除 `types/index.ts`（类型改从 `packages/shared` 取，过渡期只留评测演示用的三个类型）
-- [ ] `Dashboard.tsx` → `GET /api/today` + 骨架屏 + 内容不足告警条
-- [ ] `History.tsx` → `GET /api/history`；`score === null` 显示「未打分」，不显示 0 分
-- [ ] `Learning.tsx` / `Answer.tsx` / `Result.tsx` → `GET /api/cards/:id`
-- [ ] 全局补齐**加载态 / 空态 / 错误态**（现在一个都没有）
-- [ ] 补上 PRD 5.3 学习台顶部摘要（连续 N 天 / 累计 M 张）——设计稿里有，当前实现没有，接 `GET /api/history` 后顺手补
-- [ ] **验收**：浏览器跑通「登录 → 选领域 → 看到今日卡 → 历史」；localStorage 里**不再有任何 `dailyspeak:` 数据**
+- [x] 引入 **TanStack Query**（`QueryClientProvider` + `hooks/queries.ts` 统一查询），只对 5xx 重试、4xx 不重试 → D-032
+- [x] 新增 `services/endpoints.ts`：`today()` / `history()` / `cardDetail()` / `saveProfile()`，路径与返回类型集中管理
+- [x] `services/http.ts` 增加 `authedFetch`：自动注入令牌，无会话直接抛 401，不自建 401 重放 → D-033
+- [x] 登出清空查询缓存（否则换号登录会看到上一个账号的今日任务）
+- [x] 新增 `components/states.tsx`：加载态（含**骨架屏**）/ 错误态（带重试）/ 空态，全局统一
+- [x] 删除 `services/api.ts`（localStorage 假后端）、`services/storage.ts` → D-034
+- [x] 删除 `data/cards.ts`（硬编码 10 张种子卡）
+- [x] 删除 `services/review.ts`（排期已下沉后端，前端只用 shared 的 `stageInfo`）
+- [x] 删除 `types/index.ts`（类型改从 `packages/shared` 取）→ D-035
+- [x] `Dashboard.tsx` → `GET /api/today` + 骨架屏 + **内容不足告警条** + 顶部摘要（连续 N 天 / 累计 M 张）
+- [x] `History.tsx` → `GET /api/history`；`score === null` 显示**「未打分」**，不再显示 0 分
+- [x] `Learning.tsx` / `Answer.tsx` / `Result.tsx` → `GET /api/cards/:id`，含加载态与错误态（卡片不存在不再白屏）
+- [x] 综合分公式下沉 shared（`compositeScore`），应答结果页展示「跟读 / 应答 / 综合」三个分 → D-035
+- [x] **验收通过**：`npm run auth-ui` **44/44**（连跑 4 次稳定）、`npm run smoke` 58/58、单测 50/50
+      - 含：学习台卡片数 = 服务端快照条数、页面原句与数据库内容一致、**localStorage 里没有任何 `dailyspeak:` 数据**、
+        卡片不存在给出错误态、记录页三态与 7 根周趋势柱、内容不足时跨领域补齐到 10 条并出告警条
+
+- [ ] ⬜ **PRD 5.3 学习台底部还差「本周学习日历打卡图 + 跟读平均分曲线」**（示意图里有，当前只做了顶部摘要）。
+      周打卡图可直接用 `GET /api/history` 的 `weekActivity`；**跟读平均分曲线需要 `/api/history` 新增
+      「本周每天的跟读平均分」字段（要先改 PRD 12 章契约）**，所以没顺手做。归到 P4 一起做。
+
+> ⚠️ **P2 落地前的已知断层（见 [D-034](./DECISIONS.md#d-034-过渡期评测留在浏览器本地且不落库)）**：
+> 打分提交接口要到 P2 才有，所以**学完一张卡后学习台的「跟读 / 应答」标记不会变化**。
+> 这是刻意选择——不写本地假进度，宁可如实显示「服务端还没记录」。
+> 学习页/应答页/结果页仍在用浏览器本地评测（`services/scoring.ts` + `services/asr.ts`），P2 整体替换为服务端评分。
 
 ---
 
@@ -253,6 +268,20 @@ A-8（离线缓存）可与 P4 一起定。
 - [x] 2026-09-11 `tools/api-smoke.mjs` 从 22 项扩到 **58 项**（卡片详情、今日快照、历史统计、错误格式）
 - [x] 2026-09-11 修复连续天数「今天没学就归零」与「洗牌有偏」两处缺陷 → D-028 / D-031
 - [x] 2026-09-11 「最近练习」不再用跟读分或 0 分顶替降级记录 → D-029
+
+### P1 S4（前端去 mock）
+- [x] 2026-09-11 接入 TanStack Query，查询与接口封装集中（`hooks/queries.ts` + `services/endpoints.ts`）→ D-032
+- [x] 2026-09-11 `authedFetch` 自动注入令牌；令牌刷新交给 supabase-js，不自建 401 重放 → D-033
+- [x] 2026-09-11 登出清空查询缓存，避免换号看到上一个账号的数据
+- [x] 2026-09-11 新增加载态（骨架屏）/ 错误态（带重试）/ 空态组件，五个页面全部接入
+- [x] 2026-09-11 Dashboard 接 `GET /api/today`：骨架屏、内容不足告警条、顶部摘要（连续 N 天 / 累计 M 张）
+- [x] 2026-09-11 History 接 `GET /api/history`：降级记录显示「未打分」而不是 0 分
+- [x] 2026-09-11 Learning / Answer / Result 接 `GET /api/cards/:id`，卡片不存在时给错误态而不是白屏
+- [x] 2026-09-11 删除 `services/api.ts`、`services/storage.ts`、`data/cards.ts`、`services/review.ts`、`types/index.ts`
+- [x] 2026-09-11 综合分公式下沉 shared（`compositeScore`），应答结果页展示跟读/应答/综合三个分 → D-035
+- [x] 2026-09-11 `tools/auth-ui.mjs` 从 25 项扩到 **44 项**：验证数据来自服务端、localStorage 无残留、错误态、告警条
+- [x] 2026-09-11 修正浏览器测试的就绪判定：整页加载会先渲染「正在恢复登录状态…」过渡页，
+      原来只看 `#root` 有内容就断言，导致周期性抓到过渡页（连跑 4 次已稳定）
 
 ### 样式与登录（→ D-001 / D-002 / D-003）
 - [x] 2026-09-11 修复登录页 UI 错乱：根因是**工程从未安装 Tailwind**，补齐 v4 接入

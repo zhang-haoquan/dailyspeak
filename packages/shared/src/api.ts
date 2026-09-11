@@ -11,6 +11,7 @@
  */
 
 import type { ScenarioCard } from './domain'
+import type { AuthUser, UserProfile } from './user'
 import type { LearningMode, TodayCard } from './learning'
 
 /** 服务端统一错误码 */
@@ -33,6 +34,17 @@ export interface ApiErrorBody {
   message: string
   /** 字段级错误详情，键为字段名 */
   details?: Record<string, string>
+}
+
+// ---------- GET /api/auth/me ----------
+
+/**
+ * 当前登录用户 + 画像。
+ * 前端启动时用它一次性判断该去登录页、首次引导页还是学习台。
+ */
+export interface MeResponse {
+  user: AuthUser
+  profile: UserProfile
 }
 
 // ---------- GET /api/cards/:id ----------

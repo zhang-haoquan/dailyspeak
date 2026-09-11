@@ -1,4 +1,5 @@
 import type { ApiErrorBody, ApiErrorCode } from '@dailyspeak/shared'
+import { supabase } from './supabase'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 
@@ -20,7 +21,7 @@ export class ApiError extends Error {
   }
 }
 
-interface RequestOptions extends Omit<RequestInit, 'body'> {
+export interface RequestOptions extends Omit<RequestInit, 'body'> {
   /** 访问令牌，会自动放进 Authorization 头 */
   token?: string | null
   /** JSON 请求体 */
@@ -68,4 +69,31 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   }
 
   return parsed as T
+}
+
+/**
+ * 取当前会话的访问令牌。
+ *
+ * supabase-js 开了 `autoRefreshToken`，令牌快过期时 `getSession()` 会自动刷新，
+ * 所以这里拿到的基本都是可用的——**不需要自己写 401 刷新重试**。
+ * 真的刷新失败（refresh token 也过期）时会话会被清空，那时返回 null。
+ */
+export async function getAccessToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token ?? null
+}
+
+/**
+ * 带登录态的请求：自动注入令牌。
+ * 没有会话时**不发请求**，直接抛 401——省掉一次必然失败的往返。
+ */
+export async function authedFetch<T>(
+  path: string,
+  options: Omit<RequestOptions, 'token'> = {},
+): Promise<T> {
+  const token = await getAccessToken()
+  if (!token) {
+    throw new ApiError(401, '登录状态已失效，请重新登录', 'UNAUTHORIZED')
+  }
+  return apiFetch<T>(path, { ...options, token })
 }

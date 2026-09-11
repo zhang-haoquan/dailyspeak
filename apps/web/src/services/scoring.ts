@@ -1,15 +1,48 @@
-import type { AnswerScore, RepeatScore, ScenarioCard, WordDiff } from '../types'
+import {
+  repeatScoreFromSimilarity,
+  type ScenarioCard,
+  type ScoreFeedback,
+  type WordDiff,
+} from '@dailyspeak/shared'
 import { alignWords } from './asr'
 
 /**
- * 模拟 AI 语音评测（PRD 06 章）。
- * 生产环境替换为：ASR 转写 + 通义千问/豆包语义评测（NestJS 评分服务）。
+ * 模拟 AI 语音评测（PRD 06 章）—— **过渡模块，P2 整体删除**。
  *
- * 跟读：用 ASR 转写与原文做**词级比对**（相似度 / 词级错误）得出发音分，权重 100%。
- *       没有转写结果时（浏览器不支持 / 识别失败）退化为按录音时长估算，
- *       并在反馈里说明是估算值。
+ * 这是全应用最后一处"假"逻辑：分数由本地算法生成，不经服务端。
+ * P2 接入腾讯云 ASR + DeepSeek 后，这里连同 `asr.ts`、`useTranscriber.ts` 一起删掉，
+ * 由 `POST /api/score/repeat|answer` 取代。
+ *
+ * 跟读：用转写与原文做**词级比对**（相似度 / 词级错误）得出发音分，权重 100%（D-008）。
+ *       没有转写结果时退化为按录音时长估算，并在反馈里如实说明是估算值。
  * 应答：以录音时长模拟大模型的语义/语法/流利度/措辞四维评分。
  */
+
+/**
+ * 过渡期的转写来源。
+ * shared 的 `TranscriptSource` 只列**服务端**供应商；浏览器识别与本地模拟是
+ * 这个过渡模块特有的，不该污染正式契约，所以在这里单独定义（P2 删除）。
+ */
+export type InterimTranscriptSource = 'browser' | 'mock'
+
+/** 跟读结果（过渡版：transcriptSource 放宽为浏览器/本地模拟） */
+export interface RepeatScore {
+  score: number
+  feedback: ScoreFeedback[]
+  transcript?: string
+  transcriptSource?: InterimTranscriptSource
+  alignment?: WordDiff[]
+  similarity?: number
+}
+
+/** 应答结果（过渡版） */
+export interface AnswerScore {
+  score: number
+  dimensions: { content: number; grammar: number; fluency: number; vocabulary: number }
+  feedback: ScoreFeedback[]
+  suggestion: string
+  transcript?: string
+}
 
 /** 平均语速参考：英文约 3.2 词/秒 */
 const WPM = 3.2
@@ -20,14 +53,6 @@ function clampScore(n: number, min = 55, max = 98): number {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/**
- * 词级相似度 → 跟读分。
- * 100% 词准 ≈ 98 分；约 72% 词准 ≈ 85 分（PASS 线）；0% ≈ 52 分。
- */
-function scoreFromSimilarity(similarity: number): number {
-  return clampScore(52 + similarity * 46, 40, 98)
 }
 
 /** 无转写时的兜底：按「读完整句所需时长」估算 */
@@ -101,13 +126,13 @@ export async function scoreRepeat(
   card: ScenarioCard,
   durationMs: number,
   transcript?: string,
-  transcriptSource?: 'browser' | 'mock',
+  transcriptSource?: InterimTranscriptSource,
 ): Promise<RepeatScore> {
   await delay(900 + Math.random() * 700)
 
   const hasTranscript = !!transcript && transcript.trim().length > 0
   const align = hasTranscript ? alignWords(card.sentence, transcript!) : null
-  const score = align ? scoreFromSimilarity(align.similarity) : scoreFromDuration(durationMs, card)
+  const score = align ? repeatScoreFromSimilarity(align.similarity) : scoreFromDuration(durationMs, card)
 
   return {
     score,
