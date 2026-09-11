@@ -2,27 +2,34 @@
   "name": "dailyspeak",
   "private": true,
   "version": "0.1.0",
-  "type": "module",
+  "description": "DailySpeak — 场景化英语求职口语陪练",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "build:shared": "npm run build -w @dailyspeak/shared",
+    "dev": "npm run dev:web",
+    "dev:web": "npm run build:shared && npm run dev -w @dailyspeak/web",
+    "dev:api": "npm run build:shared && npm run start:dev -w @dailyspeak/api",
+    "build": "npm run build:shared && npm run build:web && npm run build:api",
+    "build:web": "npm run build -w @dailyspeak/web",
+    "build:api": "npm run build -w @dailyspeak/api",
+    "test": "npm run test -w @dailyspeak/api",
+    "typecheck": "npm run typecheck -w @dailyspeak/shared && npm run typecheck -w @dailyspeak/web",
+    "db:up": "supabase start",
+    "db:down": "supabase stop",
+    "db:status": "supabase status",
+    "db:migrate": "npm run prisma:migrate -w @dailyspeak/api",
+    "db:seed": "npm run prisma:seed -w @dailyspeak/api",
+    "db:studio": "npm run prisma:studio -w @dailyspeak/api",
     "e2e": "node tools/e2e.mjs http://localhost:5173",
     "shots": "node tools/shots.mjs http://localhost:5173 shots"
   },
-  "dependencies": {
-    "lucide-react": "^0.469.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.0"
+  "engines": {
+    "node": ">=20"
   },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.3.3",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "tailwindcss": "^4.3.3",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+  "overrides": {
+    "typescript": "5.9.3"
   }
 }

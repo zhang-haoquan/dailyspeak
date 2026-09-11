@@ -1,0 +1,144 @@
+// DailySpeak 数据模型（PRD 07 章）
+//
+// 账号本身由 Supabase Auth 托管（auth.users），这里只保存业务数据。
+// user_id 存的是 Supabase 的 auth user id，不建外键到 auth schema，
+// 避免 Prisma 与 Supabase 托管 schema 互相干扰（删除账号时由业务层清理）。
+//
+// 注意：Prisma v7 起，数据源 URL 不再写在 schema 里，
+// 而是放在 apps/api/prisma.config.ts，客户端连接走 driver adapter。
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// 内容审核状态（PRD 07 章：AI 生成候选 + 人工抽审上线）
+enum CardStatus {
+  draft
+  review
+  published
+  archived
+}
+
+/// 本次练习是新卡还是复习卡
+enum LearningMode {
+  new
+  review
+}
+
+/// 用户画像（PRD 5.2）
+model UserProfile {
+  id         String   @id @default(uuid()) @db.Uuid
+  /// Supabase auth.users.id
+  userId     String   @unique @map("user_id") @db.Uuid
+  /// 已选领域，1–3 个（PRD 5.2）
+  domains    String[]
+  /// 每日学习条数（含复习），1–10
+  dailyCount Int      @map("daily_count")
+  /// 是否已完成首次引导
+  onboarded  Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("user_profiles")
+}
+
+/// 场景卡内容库（PRD 07 章）
+model ScenarioCard {
+  id              String     @id @default(uuid())
+  domain          String
+  /// 场景标题，如「Resume walkthrough」
+  sceneText       String     @map("scene_text")
+  /// 场景中文说明
+  sceneZh         String     @map("scene_zh")
+  /// 跟读原句（英文）
+  sentence        String
+  /// 跟读原句（中文）
+  translation     String
+  /// 情境应答面试官提问（英文）
+  prompt          String
+  /// 提问中文
+  promptZh        String     @map("prompt_zh")
+  /// 参考答案（可选）
+  referenceAnswer String?    @map("reference_answer")
+  /// 难度 1–3
+  difficulty      Int
+  /// 标签，如「面试高频句」
+  tag             String
+  status          CardStatus @default(draft)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  progress       UserProgress[]
+  reviewSchedule ReviewSchedule[]
+
+  /// 调度只查已上线内容，按领域过滤
+  @@index([status, domain])
+  @@map("scenario_cards")
+}
+
+/// 学习记录：每张卡的跟读/应答/综合分（PRD 07 章）
+/// 唯一键 (user_id, card_id) 支撑 PRD 09 章「重复提交同张卡幂等」
+model UserProgress {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  cardId      String       @map("card_id")
+  repeatScore Int?         @map("repeat_score")
+  answerScore Int?         @map("answer_score")
+  composite   Int?
+  /// 本轮完成的本地时间点：判定「今天是否完成」用
+  doneAt      DateTime     @map("done_at") @db.Timestamptz(6)
+  mode        LearningMode
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  card ScenarioCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cardId])
+  @@index([userId, doneAt])
+  @@map("user_progress")
+}
+
+/// 遗忘曲线复习排期（PRD 5.5）
+/// 唯一键 (user_id, card_id) 保证一张卡只有一条排期，
+/// 索引 (user_id, due_at) 支撑「按到期时间拉取今日复习卡」
+model ReviewSchedule {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  cardId        String   @map("card_id")
+  /// 当前阶段 1–6
+  stage         Int
+  /// 下次复习时间
+  dueAt         DateTime @map("due_at") @db.Timestamptz(6)
+  lastScore     Int      @default(0) @map("last_score")
+  timesReviewed Int      @default(0) @map("times_reviewed")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  card ScenarioCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cardId])
+  @@index([userId, dueAt])
+  @@map("review_schedule")
+}
+
+/// 今日任务快照（docs/DECISIONS.md D-004）
+/// 当天首次进入学习台时生成并固定，避免今日条数在一天内变化
+model TodayPlan {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// 本地日期 YYYY-MM-DD
+  dateKey   String   @map("date_key") @db.VarChar(10)
+  /// [{ cardId, type }]
+  tasks     Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, dateKey])
+  @@map("today_plan")
+}

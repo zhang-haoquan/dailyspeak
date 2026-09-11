@@ -45,38 +45,65 @@
 ## 🗂 代码结构
 
 ```
-dailyspeak/
-├─ docs/              需求 / 决策 / 待办（唯一信息源）
-├─ design/pages/      7 页高保真设计稿（HTML，视觉基准）
-├─ src/               前端（Vite + React + TS + Tailwind v4）
-│  ├─ pages/          P1 登录 · P2 引导 · P3 学习台 · P4 学习/应答/结果 · P5 历史
-│  ├─ components/     ScoreRing / PlaybackButton / TranscriptCard
-│  ├─ hooks/          useAuth · useRecorder · useSpeech · useTranscriber
-│  ├─ services/       ⚠️ 当前为 mock 数据层，P1/P2 将整体替换
-│  └─ styles/         设计 token + Tailwind 主题映射
-├─ tools/             零依赖 E2E / 截图脚本（CDP 驱动真实浏览器）
-└─ public/
+dailyspeak/                    npm workspaces monorepo
+├─ apps/
+│  ├─ web/                     前端（Vite + React + TS + Tailwind v4）
+│  │  ├─ src/pages/            P1 登录 · P2 引导 · P3 学习台 · P4 学习/应答/结果 · P5 历史
+│  │  ├─ src/components/       ScoreRing / PlaybackButton / TranscriptCard
+│  │  ├─ src/hooks/            useAuth · useRecorder · useSpeech · useTranscriber
+│  │  ├─ src/services/         ⚠️ 当前为 mock 数据层，P1 S4 / P2 将整体替换
+│  │  ├─ src/data/             ⚠️ 硬编码的 10 张种子卡，已入库，待删
+│  │  └─ src/styles/           设计 token + Tailwind 主题映射
+│  └─ api/                     后端（NestJS 11 + Prisma 7 + Supabase）
+│     ├─ prisma/               schema.prisma · migrations · seed.ts
+│     ├─ prisma.config.ts      Prisma 7 中心配置（连接串在此）
+│     └─ src/
+│        ├─ prisma/            PrismaService（pg driver adapter）
+│        ├─ review/            遗忘曲线排期（纯函数 + 单测）
+│        ├─ health/            健康检查
+│        └─ generated/         ⚠️ Prisma 生成物，不入库
+├─ packages/shared/            前后端共用类型与常量（唯一来源）
+├─ docs/                       需求 / 决策 / 待办（唯一信息源）
+├─ design/pages/               7 页高保真设计稿（视觉基准）
+├─ supabase/                   本地 Supabase 配置与 migration
+└─ tools/                      零依赖 E2E / 截图脚本（CDP 驱动真实浏览器）
 ```
-
-> 后端（NestJS）尚未创建，见 [`docs/TODO.md`](docs/TODO.md) 的 P1。
 
 ---
 
 ## 🚀 本地运行
 
+### 一次性准备
+
 ```bash
 npm install
-npm run dev          # http://localhost:5173
+npm run db:up               # 启动本地 Supabase（Docker，首次拉镜像较慢）
+cp apps/api/.env.example apps/api/.env   # 按 npx supabase status 填入本地密钥
+npm run db:migrate          # 建表
+npm run db:seed             # 写入 10 张场景卡
 ```
 
-其它脚本：
+### 日常开发
 
 ```bash
-npm run build        # 类型检查 + 生产构建
-npm run preview      # 预览构建产物
-npm run e2e          # 端到端回归（需先启动带调试端口的 Chrome，见 tools/README.md）
-npm run shots        # 逐页截图到 shots/
+npm run dev:web             # 前端 http://localhost:5173
+npm run dev:api             # 后端 http://localhost:3000/api
 ```
+
+> 两个 dev 命令都会先构建 `packages/shared`（共用类型变了要重新构建）。
+
+### 其它脚本
+
+```bash
+npm run build               # shared → web → api 全量构建
+npm test                    # 后端单测（遗忘曲线排期）
+npm run db:studio           # Prisma Studio 看数据
+npm run db:status           # 查看本地 Supabase 各服务地址与密钥
+npm run e2e                 # 端到端回归（需先启动带调试端口的 Chrome，见 tools/README.md）
+npm run shots               # 逐页截图到 shots/
+```
+
+健康检查：`curl http://localhost:3000/api/health` → `{"ok":true,"db":true,"cards":10}`
 
 ---
 
@@ -88,8 +115,12 @@ npm run shots        # 逐页截图到 shots/
 | 路由 | react-router-dom v6 |
 | 图标 | lucide-react |
 | 语音采集 | 浏览器 MediaRecorder / WebRTC |
-| 后端 | NestJS + TypeScript（**待建**） |
-| 数据 / 身份 | Supabase Auth + Postgres + Prisma（**待接**） |
-| AI | 通义千问 / 豆包（ASR + LLM，**待接**） |
+| 后端 | NestJS 11 + TypeScript 5.9.3 |
+| 数据 / 身份 | Supabase（本地 Docker，后续迁云端） |
+| ORM | Prisma 7（pg driver adapter） |
+| AI | LLM 用 DeepSeek；ASR 供应商待定（→ [D-013](docs/DECISIONS.md#d-013-asr-供应商选型待确认)） |
+
+> 版本栈刻意停在 NestJS 11 / TS 5.9 / Prisma 7.10 而非各自的最新版，
+> 原因是最新组合的工具链不兼容（详见 [D-023](docs/DECISIONS.md#d-023-后端技术栈锁定-nestjs-11--typescript-593)）。
 
 设计规范：品牌色 `#3b82f6 → #10b981` 渐变，DM Sans 字体，圆角卡片，浅色主题。设计 token 集中在 `src/styles/tokens.css`，是颜色的唯一来源。
