@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en" class="light" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Answer — DailySpeak</title>
+    <style id="theme-vars">
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+/*
+ * DailySpeak design tokens
+ * Based on Apple Design Library structural tokens
+ * Brand color overridden per user spec: #3b82f6 → #10b981 gradient
+ * Style: Modern, fresh, friendly learning aesthetic
+ * Theme mode: light
+ */
+
+/* @group-priority: brand, background, text, icon, state-success, state-error, gradient */
+
+:root {
+  
+  /* solo-design consumption aliases: explicit prefix for fill-html-head.mjs */
+  --apple-background: var(--background, #ffffff);
+  --apple-foreground: var(--foreground, #1d1d1f);
+  --apple-card: var(--card, var(--background));
+  --apple-card-foreground: var(--card-foreground, var(--foreground));
+  --apple-popover: var(--popover, var(--card));
+  --apple-popover-foreground: var(--popover-foreground, var(--card-foreground, var(--foreground)));
+  --apple-primary: var(--primary, #3b82f6);
+  --apple-primary-foreground: var(--primary-foreground, #ffffff);
+  --apple-secondary: var(--secondary, var(--muted, var(--card)));
+  --apple-secondary-foreground: var(--secondary-foreground, var(--foreground));
+  --apple-muted: var(--muted, var(--background-200));
+  --apple-muted-foreground: var(--muted-foreground, var(--text-500));
+  --apple-accent: var(--accent, var(--background-100));
+  --apple-accent-foreground: var(--accent-foreground, var(--foreground));
+  --apple-destructive: var(--destructive, #ef4444);
+  --apple-destructive-foreground: var(--destructive-foreground, #ffffff);
+  --apple-border: var(--border, var(--background-300));
+  --apple-input: var(--input, var(--border));
+  --apple-ring: var(--ring, var(--primary));
+  --apple-chart-1: var(--chart-1, var(--primary));
+  --apple-chart-2: var(--chart-2, var(--teal-500));
+  --apple-chart-3: var(--chart-3, #f59e0b);
+  --apple-chart-4: var(--chart-4, var(--text-500));
+  --apple-chart-5: var(--chart-5, var(--foreground));
+  --apple-sidebar: var(--sidebar, var(--background));
+  --apple-sidebar-foreground: var(--sidebar-foreground, var(--foreground));
+  --apple-sidebar-primary: var(--sidebar-primary, var(--primary));
+  --apple-sidebar-primary-foreground: var(--sidebar-primary-foreground, var(--primary-foreground));
+  --apple-sidebar-accent: var(--sidebar-accent, var(--accent, var(--muted, var(--card))));
+  --apple-sidebar-accent-foreground: var(--sidebar-accent-foreground, var(--accent-foreground, var(--foreground)));
+  --apple-radius-sm: var(--radius-sm, 0.6rem);
+  --apple-radius-md: var(--radius-md, 0.9rem);
+  --apple-radius-lg: var(--radius-lg, 1.2rem);
+  --apple-radius-xl: var(--radius-xl, 1.6rem);
+
+/* ===== PRIMITIVE PALETTE ===== */
+
+  /* brand — blue scale centered on #3b82f6 */
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6; /* @primary */
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --brand-800: #1e40af;
+  --brand-900: #1e3a8a;
+
+  /* teal — gradient endpoint */
+  --teal-50: #ecfdf5;
+  --teal-100: #d1fae5;
+  --teal-200: #a7f3d0;
+  --teal-300: #6ee7b7;
+  --teal-400: #34d399;
+  --teal-500: #10b981; /* @gradient-end */
+  --teal-600: #059669;
+  --teal-700: #047857;
+  --teal-800: #065f46;
+  --teal-900: #064e3b;
+
+  /* background */
+  --background-50: #ffffff;
+  --background-100: #f7f7fa;
+  --background-200: #f2f2f7;
+  --background-300: #e5e5ea;
+  --background-400: #d1d1d6;
+  --background-500: #aeaeb2;
+  --background-600: #8e8e93;
+  --background-700: #3a3a3c;
+  --background-800: #1c1c1e;
+  --background-900: #000000;
+
+  /* text */
+  --text-50: #f5f5f7;
+  --text-100: #e3e3e8;
+  --text-200: #c7c7cc;
+  --text-300: #aeaeb2;
+  --text-400: #8e8e93;
+  --text-500: #6e6e73;
+  --text-600: #48484a;
+  --text-700: #3c3c43;
+  --text-800: #1d1d1f;
+  --text-900: #000000;
+
+  /* icon */
+  --icon-50: #f5f5f7;
+  --icon-100: #e5e5ea;
+  --icon-200: #d1d1d6;
+  --icon-300: #c7c7cc;
+  --icon-400: #aeaeb2;
+  --icon-500: #8e8e93;
+  --icon-600: #6e6e73;
+  --icon-700: #48484a;
+  --icon-800: #2c2c2e;
+  --icon-900: #1d1d1f;
+
+  /* state-success */
+  --state-success: #10b981;
+  --state-success-dark: #059669;
+  --state-success-surface: #ecfdf5;
+  --state-success-foreground: #ffffff;
+
+  /* state-error */
+  --state-error: #ef4444;
+  --state-error-dark: #dc2626;
+  --state-error-surface: #fef2f2;
+  --state-error-foreground: #ffffff;
+
+  /* ===== GRADIENT TOKENS ===== */
+  --gradient-primary: linear-gradient(135deg, #3b82f6, #10b981);
+  --gradient-primary-hover: linear-gradient(135deg, #2563eb, #059669);
+  --gradient-soft: linear-gradient(135deg, #eff6ff, #ecfdf5);
+  --gradient-accent: linear-gradient(135deg, #dbeafe, #d1fae5);
+  --gradient-text: linear-gradient(135deg, #3b82f6, #10b981);
+
+  /* ===== SEMANTIC ROLES ===== */
+
+  --background: var(--background-50);
+  --foreground: var(--text-800);
+  --card: var(--background-50);
+  --card-foreground: var(--text-800);
+  --popover: var(--background-50);
+  --popover-foreground: var(--text-900);
+
+  --primary: var(--brand-500);
+  --primary-foreground: var(--background-50);
+  --secondary: var(--background-200);
+  --secondary-foreground: var(--text-800);
+  --muted: var(--background-200);
+  --muted-foreground: var(--text-500);
+  --accent: var(--background-100);
+  --accent-foreground: var(--text-800);
+  --destructive: var(--state-error);
+  --destructive-foreground: var(--state-error-foreground);
+  --success: var(--state-success);
+  --success-foreground: var(--state-success-foreground);
+  --border: var(--background-300);
+  --input: var(--background-400);
+  --ring: var(--brand-500);
+
+  --icon: var(--icon-900);
+  --icon-muted: var(--icon-500);
+
+  /* chart */
+  --chart-1: var(--brand-500);
+  --chart-2: var(--teal-500);
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: var(--text-500);
+
+  /* sidebar */
+  --sidebar: var(--background-200);
+  --sidebar-foreground: var(--text-800);
+  --sidebar-primary: var(--brand-500);
+  --sidebar-primary-foreground: var(--background-50);
+  --sidebar-accent: var(--background-300);
+  --sidebar-accent-foreground: var(--text-800);
+  --sidebar-border: var(--background-300);
+  --sidebar-ring: var(--brand-500);
+
+  /* TYPOGRAPHY */
+  --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
+  --font-serif: DM Sans, ui-sans-serif, sans-serif, system-ui;
+  --font-mono: JetBrains Mono, monospace;
+  --tracking-normal: 0em;
+
+  /* RADIUS */
+  --radius: 1.2rem;
+  --radius-sm: 0.6rem;
+  --radius-md: 0.9rem;
+  --radius-lg: 1.2rem;
+  --radius-xl: 1.6rem;
+
+  /* SHADOWS */
+  --shadow-2xs: 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.05);
+  --shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.10), 0 8px 16px -8px rgba(0, 0, 0, 0.06);
+  --shadow-2xl: 0 24px 64px -12px rgba(0, 0, 0, 0.12);
+
+  /* SPACING */
+  --spacing: 0.24rem;
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--apple-background);
+    --color-foreground: var(--apple-foreground);
+    --color-card: var(--apple-card);
+    --color-card-foreground: var(--apple-card-foreground);
+    --color-popover: var(--apple-popover);
+    --color-popover-foreground: var(--apple-popover-foreground);
+    --color-primary: var(--apple-primary);
+    --color-primary-foreground: var(--apple-primary-foreground);
+    --color-secondary: var(--apple-secondary);
+    --color-secondary-foreground: var(--apple-secondary-foreground);
+    --color-muted: var(--apple-muted);
+    --color-muted-foreground: var(--apple-muted-foreground);
+    --color-accent: var(--apple-accent);
+    --color-accent-foreground: var(--apple-accent-foreground);
+    --color-destructive: var(--apple-destructive);
+    --color-destructive-foreground: var(--apple-destructive-foreground);
+    --color-border: var(--apple-border);
+    --color-input: var(--apple-input);
+    --color-ring: var(--apple-ring);
+    --color-chart-1: var(--apple-chart-1);
+    --color-chart-2: var(--apple-chart-2);
+    --color-chart-3: var(--apple-chart-3);
+    --color-chart-4: var(--apple-chart-4);
+    --color-chart-5: var(--apple-chart-5);
+    --color-sidebar: var(--apple-sidebar);
+    --color-sidebar-foreground: var(--apple-sidebar-foreground);
+    --color-sidebar-primary: var(--apple-sidebar-primary);
+    --color-sidebar-primary-foreground: var(--apple-sidebar-primary-foreground);
+    --color-sidebar-accent: var(--apple-sidebar-accent);
+    --color-sidebar-accent-foreground: var(--apple-sidebar-accent-foreground);
+    --radius-sm: var(--apple-radius-sm);
+    --radius-md: var(--apple-radius-md);
+    --radius-lg: var(--apple-radius-lg);
+    --radius-xl: var(--apple-radius-xl);
+  }
+  @layer base {
+    body { background: var(--apple-background); color: var(--apple-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--apple-background); }
+      .text-background { color: var(--apple-background); }
+      .border-background { border-color: var(--apple-background); }
+      .ring-background { --tw-ring-color: var(--apple-background); }
+      .bg-foreground { background-color: var(--apple-foreground); }
+      .text-foreground { color: var(--apple-foreground); }
+      .border-foreground { border-color: var(--apple-foreground); }
+      .ring-foreground { --tw-ring-color: var(--apple-foreground); }
+      .bg-card { background-color: var(--apple-card); }
+      .text-card { color: var(--apple-card); }
+      .border-card { border-color: var(--apple-card); }
+      .ring-card { --tw-ring-color: var(--apple-card); }
+      .bg-card-foreground { background-color: var(--apple-card-foreground); }
+      .text-card-foreground { color: var(--apple-card-foreground); }
+      .border-card-foreground { border-color: var(--apple-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--apple-card-foreground); }
+      .bg-popover { background-color: var(--apple-popover); }
+      .text-popover { color: var(--apple-popover); }
+      .border-popover { border-color: var(--apple-popover); }
+      .ring-popover { --tw-ring-color: var(--apple-popover); }
+      .bg-popover-foreground { background-color: var(--apple-popover-foreground); }
+      .text-popover-foreground { color: var(--apple-popover-foreground); }
+      .border-popover-foreground { border-color: var(--apple-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--apple-popover-foreground); }
+      .bg-primary { background-color: var(--apple-primary); }
+      .text-primary { color: var(--apple-primary); }
+      .border-primary { border-color: var(--apple-primary); }
+      .ring-primary { --tw-ring-color: var(--apple-primary); }
+      .bg-primary-foreground { background-color: var(--apple-primary-foreground); }
+      .text-primary-foreground { color: var(--apple-primary-foreground); }
+      .border-primary-foreground { border-color: var(--apple-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--apple-primary-foreground); }
+      .bg-secondary { background-color: var(--apple-secondary); }
+      .text-secondary { color: var(--apple-secondary); }
+      .border-secondary { border-color: var(--apple-secondary); }
+      .ring-secondary { --tw-ring-color: var(--apple-secondary); }
+      .bg-secondary-foreground { background-color: var(--apple-secondary-foreground); }
+      .text-secondary-foreground { color: var(--apple-secondary-foreground); }
+      .border-secondary-foreground { border-color: var(--apple-secondary-foreground); }
+      .ring-secondary-foreground { --tw-ring-color: var(--apple-secondary-foreground); }
+      .bg-muted { background-color: var(--apple-muted); }
+      .text-muted { color: var(--apple-muted); }
+      .border-muted { border-color: var(--apple-muted); }
+      .ring-muted { --tw-ring-color: var(--apple-muted); }
+      .bg-muted-foreground { background-color: var(--apple-muted-foreground); }
+      .text-muted-foreground { color: var(--apple-muted-foreground); }
+      .border-muted-foreground { border-color: var(--apple-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--apple-muted-foreground); }
+      .bg-accent { background-color: var(--apple-accent); }
+      .text-accent { color: var(--apple-accent); }
+      .border-accent { border-color: var(--apple-accent); }
+      .ring-accent { --tw-ring-color: var(--apple-accent); }
+      .bg-accent-foreground { background-color: var(--apple-accent-foreground); }
+      .text-accent-foreground { color: var(--apple-accent-foreground); }
+      .border-accent-foreground { border-color: var(--apple-accent-foreground); }
+      .ring-accent-foreground { --tw-ring-color: var(--apple-accent-foreground); }
+      .bg-destructive { background-color: var(--apple-destructive); }
+      .text-destructive { color: var(--apple-destructive); }
+      .border-destructive { border-color: var(--apple-destructive); }
+      .ring-destructive { --tw-ring-color: var(--apple-destructive); }
+      .bg-destructive-foreground { background-color: var(--apple-destructive-foreground); }
+      .text-destructive-foreground { color: var(--apple-destructive-foreground); }
+      .border-destructive-foreground { border-color: var(--apple-destructive-foreground); }
+      .ring-destructive-foreground { --tw-ring-color: var(--apple-destructive-foreground); }
+      .bg-border { background-color: var(--apple-border); }
+      .text-border { color: var(--apple-border); }
+      .border-border { border-color: var(--apple-border); }
+      .ring-border { --tw-ring-color: var(--apple-border); }
+      .bg-input { background-color: var(--apple-input); }
+      .text-input { color: var(--apple-input); }
+      .border-input { border-color: var(--apple-input); }
+      .ring-input { --tw-ring-color: var(--apple-input); }
+      .bg-ring { background-color: var(--apple-ring); }
+      .text-ring { color: var(--apple-ring); }
+      .border-ring { border-color: var(--apple-ring); }
+      .ring-ring { --tw-ring-color: var(--apple-ring); }
+      .bg-chart-1 { background-color: var(--apple-chart-1); }
+      .text-chart-1 { color: var(--apple-chart-1); }
+      .border-chart-1 { border-color: var(--apple-chart-1); }
+      .ring-chart-1 { --tw-ring-color: var(--apple-chart-1); }
+      .bg-chart-2 { background-color: var(--apple-chart-2); }
+      .text-chart-2 { color: var(--apple-chart-2); }
+      .border-chart-2 { border-color: var(--apple-chart-2); }
+      .ring-chart-2 { --tw-ring-color: var(--apple-chart-2); }
+      .bg-chart-3 { background-color: var(--apple-chart-3); }
+      .text-chart-3 { color: var(--apple-chart-3); }
+      .border-chart-3 { border-color: var(--apple-chart-3); }
+      .ring-chart-3 { --tw-ring-color: var(--apple-chart-3); }
+      .bg-chart-4 { background-color: var(--apple-chart-4); }
+      .text-chart-4 { color: var(--apple-chart-4); }
+      .border-chart-4 { border-color: var(--apple-chart-4); }
+      .ring-chart-4 { --tw-ring-color: var(--apple-chart-4); }
+      .bg-chart-5 { background-color: var(--apple-chart-5); }
+      .text-chart-5 { color: var(--apple-chart-5); }
+      .border-chart-5 { border-color: var(--apple-chart-5); }
+      .ring-chart-5 { --tw-ring-color: var(--apple-chart-5); }
+      .bg-sidebar { background-color: var(--apple-sidebar); }
+      .text-sidebar { color: var(--apple-sidebar); }
+      .border-sidebar { border-color: var(--apple-sidebar); }
+      .ring-sidebar { --tw-ring-color: var(--apple-sidebar); }
+      .bg-sidebar-foreground { background-color: var(--apple-sidebar-foreground); }
+      .text-sidebar-foreground { color: var(--apple-sidebar-foreground); }
+      .border-sidebar-foreground { border-color: var(--apple-sidebar-foreground); }
+      .ring-sidebar-foreground { --tw-ring-color: var(--apple-sidebar-foreground); }
+      .bg-sidebar-primary { background-color: var(--apple-sidebar-primary); }
+      .text-sidebar-primary { color: var(--apple-sidebar-primary); }
+      .border-sidebar-primary { border-color: var(--apple-sidebar-primary); }
+      .ring-sidebar-primary { --tw-ring-color: var(--apple-sidebar-primary); }
+      .bg-sidebar-primary-foreground { background-color: var(--apple-sidebar-primary-foreground); }
+      .text-sidebar-primary-foreground { color: var(--apple-sidebar-primary-foreground); }
+      .border-sidebar-primary-foreground { border-color: var(--apple-sidebar-primary-foreground); }
+      .ring-sidebar-primary-foreground { --tw-ring-color: var(--apple-sidebar-primary-foreground); }
+      .bg-sidebar-accent { background-color: var(--apple-sidebar-accent); }
+      .text-sidebar-accent { color: var(--apple-sidebar-accent); }
+      .border-sidebar-accent { border-color: var(--apple-sidebar-accent); }
+      .ring-sidebar-accent { --tw-ring-color: var(--apple-sidebar-accent); }
+      .bg-sidebar-accent-foreground { background-color: var(--apple-sidebar-accent-foreground); }
+      .text-sidebar-accent-foreground { color: var(--apple-sidebar-accent-foreground); }
+      .border-sidebar-accent-foreground { border-color: var(--apple-sidebar-accent-foreground); }
+      .ring-sidebar-accent-foreground { --tw-ring-color: var(--apple-sidebar-accent-foreground); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <style id="critical-layout">
+      /* DailySpeak ANSWER page — responsive-safe layout (all colors via CSS variables) */
+      .topnav {
+        position: sticky; top: 0; z-index: 50;
+        height: 3.5rem;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 1.5rem;
+        background: var(--background);
+        border-bottom: 1px solid var(--border);
+      }
+      .topnav .logo {
+        font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em;
+        background: var(--gradient-primary);
+        -webkit-background-clip: text; background-clip: text;
+        color: transparent; -webkit-text-fill-color: transparent;
+      }
+      .topnav .back-link {
+        display: inline-flex; align-items: center; gap: 0.375rem;
+        font-size: 0.875rem; font-weight: 600;
+        color: var(--muted-foreground); text-decoration: none;
+        background: transparent; border: none; cursor: pointer;
+      }
+      .topnav .back-link:hover { color: var(--foreground); }
+      .topnav .back-link svg { width: 16px; height: 16px; }
+
+      .page { max-width: 48rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+      .tag-row {
+        display: flex; align-items: center; justify-content: center;
+        gap: 0.625rem; flex-wrap: wrap;
+      }
+      .tag {
+        display: inline-flex; align-items: center;
+        border-radius: 999px; padding: 6px 14px;
+        font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap;
+      }
+      .tag-domain { background: var(--brand-50); color: var(--brand-600); }
+      .tag-step { background: var(--gradient-primary); color: var(--primary-foreground); }
+
+      .q-card {
+        max-width: 42rem; margin: 1.5rem auto 0;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-md);
+        padding: 2rem; text-align: center;
+      }
+      .q-label {
+        font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+        font-weight: 600; color: var(--muted-foreground);
+      }
+      .q-en {
+        margin-top: 0.75rem; font-size: 1.5rem; font-weight: 600;
+        line-height: 1.3; color: var(--foreground);
+      }
+      .q-zh { margin-top: 0.5rem; font-size: 1rem; color: var(--muted-foreground); }
+
+      .record { margin-top: 2.5rem; display: flex; flex-direction: column; align-items: center; }
+      .record .hint { font-size: 0.875rem; color: var(--muted-foreground); text-align: center; }
+      .mic-btn {
+        width: 96px; height: 96px; border-radius: 50%; border: none;
+        background: var(--gradient-primary); color: var(--primary-foreground);
+        cursor: pointer; box-shadow: var(--shadow-lg);
+        display: inline-flex; align-items: center; justify-content: center;
+        margin-top: 1.5rem; transition: transform 0.18s ease, box-shadow 0.18s ease;
+      }
+      .mic-btn:hover { transform: translateY(-2px); }
+      .mic-btn:active { transform: translateY(0); }
+      .mic-btn svg { width: 36px; height: 36px; }
+      .mic-label { margin-top: 1rem; font-size: 0.875rem; color: var(--muted-foreground); text-align: center; }
+      .timer {
+        margin-top: 0.5rem; font-family: var(--font-mono); font-size: 1.125rem;
+        color: var(--muted-foreground); text-align: center; letter-spacing: 0.05em;
+      }
+
+      .controls {
+        margin-top: 2rem; display: flex; align-items: center; justify-content: center;
+        gap: 1rem; flex-wrap: wrap;
+      }
+      .btn-ghost {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        background: transparent; border: 1px solid var(--border); border-radius: 999px;
+        padding: 12px 24px; font-size: 0.875rem; font-weight: 600;
+        color: var(--muted-foreground); cursor: pointer;
+        transition: color 0.18s ease, border-color 0.18s ease;
+      }
+      .btn-ghost:hover { color: var(--foreground); border-color: var(--foreground); }
+      .btn-ghost svg { width: 18px; height: 18px; }
+      .btn-submit {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        background: var(--gradient-primary); color: var(--primary-foreground);
+        border: none; border-radius: 999px; padding: 14px 32px;
+        font-size: 0.875rem; font-weight: 600; cursor: pointer;
+        box-shadow: var(--shadow-md);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+      }
+      .btn-submit:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+      .btn-submit svg { width: 18px; height: 18px; }
+
+      @media (max-width: 640px) {
+        .topnav { padding: 0 1rem; }
+        .page { padding: 1.5rem 1rem 3rem; }
+        .q-card { padding: 1.5rem; }
+        .q-en { font-size: 1.25rem; }
+        .controls { flex-direction: column; align-items: stretch; }
+        .btn-ghost, .btn-submit { width: 100%; justify-content: center; }
+      }
+    </style>
+    <main>
+      <header class="topnav">
+        <span class="logo">DailySpeak</span>
+        <a class="back-link" href="#" aria-label="返回">
+          <i data-lucide="arrow-left"></i>
+          <span>返回</span>
+        </a>
+      </header>
+      <div class="page">
+        <div class="tag-row">
+          <span class="tag tag-domain">计算机</span>
+          <span class="tag tag-step">情境应答</span>
+        </div>
+
+        <article class="q-card">
+          <p class="q-label">面试官提问</p>
+          <h2 class="q-en">Why did you leave your last job?</h2>
+          <p class="q-zh">你为什么离开上一份工作？</p>
+        </article>
+
+        <section class="record">
+          <p class="hint">用自己的话回答，时长 30–60 秒</p>
+          <button class="mic-btn" type="button" aria-label="点击开始录音">
+            <i data-lucide="mic"></i>
+          </button>
+          <p class="mic-label">点击开始录音</p>
+          <p class="timer">00:00</p>
+        </section>
+
+        <div class="controls">
+          <button class="btn-ghost" type="button">
+            <i data-lucide="circle-play"></i>
+            <span>重听题目</span>
+          </button>
+          <button class="btn-submit" type="button">
+            <i data-lucide="check"></i>
+            <span>提交回答</span>
+          </button>
+        </div>
+      </div>
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
