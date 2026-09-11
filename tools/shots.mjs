@@ -1,8 +1,29 @@
 /**
  * 无依赖截图工具（Chrome DevTools Protocol）
  * 用法：先启动带 --remote-debugging-port=9222 的 Chrome，再 node tools/shots.mjs <baseUrl> <outDir>
+ *
+ * ⚠️ 已失效，待重写（见 tools/README.md「待重写」一节）
+ * 本脚本过去靠往 localStorage 注入 dailyspeak:users / session 来伪造登录态。
+ * 认证改为真实 Supabase 会话后，所有受保护路由都会跳回登录页——
+ * 也就是说它会"成功"产出 14 张一模一样的登录页截图，这比报错更危险，因此改为直接停止。
+ *
+ * 重写方式参考 tools/auth-ui.mjs：admin API 建号 → 浏览器里走真实登录表单 → 再截图。
  */
 import { writeFileSync, mkdirSync } from 'node:fs'
+
+console.error(
+  [
+    '',
+    '⚠️  tools/shots.mjs 已失效，暂停运行。',
+    '',
+    '   认证已改为真实 Supabase 会话，本脚本依赖的 localStorage 伪造登录态不再成立；',
+    '   继续运行只会产出 14 张登录页截图（所有受保护路由都被挡回 /login）。',
+    '',
+    '   重写计划见 tools/README.md「待重写」一节。',
+    '',
+  ].join('\n'),
+)
+process.exit(1)
 
 const BASE = process.argv[2] ?? 'http://localhost:5174'
 const OUT = process.argv[3] ?? 'shots'

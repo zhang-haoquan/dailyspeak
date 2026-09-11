@@ -2,8 +2,32 @@
  * 端到端行为校验（无依赖 CDP）
  * 走真实链路：学习台 → 跳过录音跟读 → 结果 → 情境应答 → 完成 → 回学习台
  * 用法：node tools/e2e.mjs [baseUrl]
+ *
+ * ⚠️ 已失效，待重写（见 tools/README.md「待重写」一节）
+ * 本脚本过去靠往 localStorage 注入 dailyspeak:users / session 来伪造登录态，
+ * 认证改为真实 Supabase 会话后这条路已断。直接运行只会得到一串无意义的失败。
+ *
+ * 重写前请用 npm run smoke（API 层）与 tools/auth-ui.mjs（浏览器端）做回归。
+ * 里面的断言本身仍有价值——它们编码了 PRD 的业务规则，重写时按 auth-ui.mjs
+ * 的写法（admin API 建号 → 走真实登录）替换掉取数方式即可。
  */
 import { appendFileSync, writeFileSync } from 'node:fs'
+
+console.error(
+  [
+    '',
+    '⚠️  tools/e2e.mjs 已失效，暂停运行。',
+    '',
+    '   认证已改为真实 Supabase 会话，本脚本依赖的 localStorage 伪造登录态不再成立。',
+    '   重写计划见 tools/README.md「待重写」一节与 docs/TODO.md 的 P4 小节。',
+    '',
+    '   现在请改用：',
+    '     npm run smoke                                    API 层鉴权与主链路',
+    '     node --env-file=apps/api/.env tools/auth-ui.mjs   浏览器端认证验收',
+    '',
+  ].join('\n'),
+)
+process.exit(1)
 
 const BASE = process.argv[2] ?? 'http://localhost:5174'
 const CDP = 'http://127.0.0.1:9222'
