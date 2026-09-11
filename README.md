@@ -96,6 +96,21 @@ npm run dev:api             # 后端 http://localhost:3000/api
 
 > `dev:web` 会先构建 `packages/shared`；前端自身直接消费 shared 源码（见决策 D-025）。
 
+### 收工 / 重启
+
+```bash
+# 关掉：先 Ctrl+C 停掉前后端两个 dev server，再停数据库
+npm run db:down             # 停本地 Supabase 容器（**数据会保留**）
+```
+
+> ⚠️ **别加 `--no-backup`**：`npx supabase stop --no-backup` 会连数据卷一起删掉，
+> 测试账号、学习记录、今日快照全没（内容卡可以 `npm run db:seed` 重新灌，用户数据不行）。
+>
+> 重新开工时 `npm run db:up` 即可，数据还在。
+>
+> Docker Desktop 本身可以在不再开发时退出（右下角托盘 → Quit Docker Desktop）。
+> 只要本地 Supabase 容器还开着，它就会一直占用内存。
+
 ### 其它脚本
 
 ```bash

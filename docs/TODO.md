@@ -227,7 +227,7 @@ A-8（离线缓存）可与 P4 一起定。
 
 ## H. 上线前检查清单（准备部署到自有服务器时执行 → D-020）
 
-- [ ] Supabase 云端项目建好，`supabase link` + `db push` 推送 schema 与 migration
+- [ ] Supabase 云端项目建好，`npx supabase link` + `npx supabase db push` 推送 schema 与 migration
 - [ ] 先在服务器上跑一遍 `npm run check:providers`：确认 DeepSeek / 腾讯云密钥**真的能用**
       （密钥过期或权限没开，等到用户点录音才发现就晚了）
 - [ ] 服务器上配置 `apps/api/.env`：云端 `DATABASE_URL`、`SUPABASE_*`、`DEEPSEEK_API_KEY`、`TENCENT_*`
