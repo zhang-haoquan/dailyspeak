@@ -58,6 +58,28 @@ npm run dev:web             # 前端 :5173
 | `npm run score-e2e` | **真实第三方评分端到端**（`<cardId> <repeat.wav> <answer.wav>`，57 项） | 后端 + 两家第三方 |
 | `npm run learning-e2e` | **真实浏览器录音端到端**（`<cardId>`，28 项） | 上面全部 + 前端 + 带假音频的 Chrome |
 | `npm run e2e` | 学习主链路回归（73 项，⚠️ 待重写） | — |
+| `npm run stop` | **收工**：停前后端 + 本地 Supabase + 调试 Chrome（`-- -IncludeDocker` 连 Docker Desktop 一起关） | — |
+
+## 收工（`stop-all.ps1`）
+
+每天下班关服务用的，按**端口**关而不是按进程名，所以不会误伤别的 node 进程
+（本机同时跑着 DeepSeek Harness 自己的 node，按名字杀会把会话弄断）。
+
+```powershell
+npm run stop                      # 停前后端 + 本地 Supabase + 调试 Chrome
+npm run stop -- -IncludeDocker    # 连 Docker Desktop 一起退出
+pwsh tools/stop-all.ps1 -DryRun   # 只报告会关哪些，不动手
+```
+
+- 停 `:3000`（后端）、`:5173` / `:5175`（前端，**端口不一定在 5173**）
+- `npx supabase stop`：数据保留在 Docker 卷里，下次 `db:up` 会回来
+- 只关 `--user-data-dir` 指向 `%TEMP%\dailyspeak-chrome` 的 Chrome，不碰你日常用的浏览器
+- Docker Desktop 默认不动，要一起退加 `-IncludeDocker`
+- **幂等**：本来就关着的东西报「本来就没在跑」，不报错
+
+跑之前会先探一下 Docker 是否在运行：Docker Desktop 已经退出时 `supabase stop` 会抛一个
+看不懂的命名管道错误（`open //./pipe/dockerDesktopLinuxEngine`），那是「本来就没跑」，
+不是故障——脚本把它识别成 skip，不打假警报（这是写这个脚本时实际踩到的）。
 
 需要换端口时直接跑脚本并传参：
 

@@ -21,6 +21,7 @@
     "db:up": "npx supabase start",
     "db:down": "npx supabase stop",
     "db:status": "npx supabase status",
+    "stop": "pwsh -File tools/stop-all.ps1",
     "db:migrate": "npm run prisma:migrate -w @dailyspeak/api",
     "db:seed": "npm run prisma:seed -w @dailyspeak/api",
     "db:studio": "npm run prisma:studio -w @dailyspeak/api",

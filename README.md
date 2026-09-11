@@ -98,18 +98,69 @@ npm run dev:api             # 后端 http://localhost:3000/api
 
 ### 收工 / 重启
 
+**每天开发结束，请把这三样关掉**（它们会一直占内存，Supabase 一个人就吃 1GB 上下）。
+最省事的是一行命令：
+
 ```bash
-# 关掉：先 Ctrl+C 停掉前后端两个 dev server，再停数据库
-npm run db:down             # 停本地 Supabase 容器（**数据会保留**）
+npm run stop                 # 停前后端 + 本地数据库 + 调试用 Chrome
+npm run stop -- -IncludeDocker   # 连 Docker Desktop 一起退出
 ```
 
-> ⚠️ **别加 `--no-backup`**：`npx supabase stop --no-backup` 会连数据卷一起删掉，
-> 测试账号、学习记录、今日快照全没（内容卡可以 `npm run db:seed` 重新灌，用户数据不行）。
->
-> 重新开工时 `npm run db:up` 即可，数据还在。
->
-> Docker Desktop 本身可以在不再开发时退出（右下角托盘 → Quit Docker Desktop）。
-> 只要本地 Supabase 容器还开着，它就会一直占用内存。
+脚本是**幂等**的：本来就关着的东西会显示「本来就没在跑」，不会报错。想先看会关哪些、不动手：
+
+```powershell
+pwsh tools/stop-all.ps1 -DryRun
+```
+
+#### 手工关闭（不想用脚本时）
+
+| 顺序 | 关什么 | 命令 |
+| --- | --- | --- |
+| 1 | 前后端 dev server | 在跑 `dev:web` / `dev:api` 的终端各按一次 `Ctrl+C` |
+| 2 | 本地数据库 | `npm run db:down` |
+| 3 | 调试用 Chrome | 直接关窗口（别关你日常用的那个） |
+| 4 | Docker Desktop（可选） | 托盘图标 → Quit Docker Desktop，或 `docker desktop stop` |
+
+⚠️ **前端不一定在 5173。** Vite 发现端口被占会自己换，本项目实际多次跑在 **5175**。
+找不准端口时按进程杀：
+
+```powershell
+Get-NetTCPConnection -LocalPort 5175 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
+
+#### 什么会丢、什么不会丢
+
+| 数据 | 关闭后 |
+| --- | --- |
+| 本地数据库全部内容（账号、学习记录、今日快照、内容卡） | **保留**。在 Docker 数据卷里，`npm run db:up` 回来就都在 |
+| `apps/api/.env`（密钥） | **保留**。在磁盘上，本来就不进版本库 |
+| `node_modules` / 构建产物 | 保留 |
+| 当次会话的录音回听 | 关页面即失效——音频本来就不落库（[D-017](docs/DECISIONS.md)） |
+
+> ⚠️ **永远不要给 supabase stop 加 `--no-backup`。**
+> 那个参数会**连数据卷一起删**：测试账号、学习记录、今日快照全没。
+> 内容卡能用 `npm run db:seed` 重新灌，用户数据灌不回来。
+
+> ⚠️ **不要用「按名字杀 node 进程」的方式收工**（比如 `taskkill /IM node.exe /F`）。
+> 本项目是 npm workspaces，机器上同时跑着 DeepSeek Harness 自己的 node 进程，
+> 一起杀掉会把当前会话弄断。按**端口**杀才安全——`npm run stop` 就是这么做的。
+
+#### 明天的恢复顺序
+
+```bash
+npm run db:up        # 1. 起数据库（数据还在，首次会重建容器，约 30 秒）
+npm run dev:api      # 2. 后端 http://localhost:3000/api
+npm run dev:web      # 3. 前端（看终端输出的实际端口，可能是 5175）
+```
+
+`db:up` 之后可以顺手确认数据还在：
+
+```bash
+npm run db:status    # 应能列出 API URL / Studio / Mailpit 地址
+```
+
+> 想在恢复后立刻确认 AI 供应商还能用（比如怀疑密钥过期）：
+> `npm run check:providers`
 
 ### 其它脚本
 
@@ -123,6 +174,7 @@ npm run score-e2e           # 真实第三方端到端评分（需传卡片 id �
 npm run learning-e2e        # 真实浏览器录音端到端（需调试 Chrome 喂假麦克风，28 项）
 npm run db:studio           # Prisma Studio 看数据
 npm run db:status           # 查看本地 Supabase 各服务地址与密钥
+npm run stop                # 收工：停前后端 + 数据库 + 调试 Chrome（加 -- -IncludeDocker 连 Docker 一起关）
 npm run e2e                 # 学习主链路回归（⚠️ 认证改造后待重写，见 tools/README.md）
 ```
 
