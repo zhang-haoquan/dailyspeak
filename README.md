@@ -77,11 +77,15 @@ dailyspeak/                    npm workspaces monorepo
 
 ```bash
 npm install
-npm run db:up               # 启动本地 Supabase（Docker，首次拉镜像较慢）
-cp apps/api/.env.example apps/api/.env   # 按 npx supabase status 填入本地密钥
-npm run db:migrate          # 建表
-npm run db:seed             # 写入 10 张场景卡
+npm run db:up                            # 启动本地 Supabase（Docker，首次拉镜像较慢）
+cp apps/api/.env.example apps/api/.env   # 按 npx supabase status 填入本地 Supabase 密钥
+cp apps/web/.env.example apps/web/.env   # 填入 VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY
+npm run db:migrate                       # 建表 + 注册触发器
+npm run db:seed                          # 写入 10 张场景卡
 ```
+
+> AI 供应商密钥（DeepSeek、腾讯云）见 `apps/api/.env.example` 的注释，**只填在后端**。
+> 本地验证邮件在 Mailpit：<http://127.0.0.1:54324>
 
 ### 日常开发
 
@@ -90,20 +94,35 @@ npm run dev:web             # 前端 http://localhost:5173
 npm run dev:api             # 后端 http://localhost:3000/api
 ```
 
-> 两个 dev 命令都会先构建 `packages/shared`（共用类型变了要重新构建）。
+> `dev:web` 会先构建 `packages/shared`；前端自身直接消费 shared 源码（见决策 D-025）。
 
 ### 其它脚本
 
 ```bash
 npm run build               # shared → web → api 全量构建
 npm test                    # 后端单测（遗忘曲线排期）
+npm run smoke               # API 冒烟测试（鉴权 + 注册登录，22 项）
 npm run db:studio           # Prisma Studio 看数据
 npm run db:status           # 查看本地 Supabase 各服务地址与密钥
-npm run e2e                 # 端到端回归（需先启动带调试端口的 Chrome，见 tools/README.md）
-npm run shots               # 逐页截图到 shots/
+npm run e2e                 # 端到端回归（⚠️ 认证改造后待重写，见 tools/README.md）
+npm run shots               # 逐页截图（⚠️ 同上）
 ```
 
 健康检查：`curl http://localhost:3000/api/health` → `{"ok":true,"db":true,"cards":10}`
+
+## 📌 各阶段状态
+
+| 阶段 | 内容 | 状态 |
+| --- | --- | --- |
+| P0 | monorepo + 工具链 + 本地 Supabase | ✅ 完成 |
+| P1 S1 | Prisma 建模 + 内容入库 + 遗忘曲线排期 | ✅ 完成 |
+| P1 S2 | Supabase Auth + 鉴权守卫 + 画像 + 前端登录 | ✅ 完成 |
+| P1 S3 | `today` / `cards` / `history` 接口 + 前端去 mock | ⬜ 进行中 |
+| P2 | ASR（腾讯云）+ LLM（DeepSeek）评分链路 | ⬜ |
+| P3 | 内容管道（AI 生成 + 人工抽审） | ⬜ |
+| P4 | 边界与异常、E2E 重写、上线 | ⬜ |
+
+详见 [`docs/TODO.md`](docs/TODO.md)。
 
 ---
 

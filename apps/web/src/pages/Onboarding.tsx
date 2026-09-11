@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ArrowRight, ArrowLeft, Languages } from 'lucide-react'
-import { DOMAINS, type Domain } from '../types'
+import { Check, ArrowRight, ArrowLeft, Languages, CircleAlert } from 'lucide-react'
+import { AVAILABLE_DOMAINS, type Domain } from '@dailyspeak/shared'
 import { useAuth } from '../hooks/useAuth'
+import { ApiError } from '../services/http'
 
-const DOMAIN_DESC: Record<Domain, string> = {
+const DOMAIN_DESC: Record<string, string> = {
   '计算机/IT': '技术面试、项目介绍、例会表达',
   '职场通用': '自我介绍、求职动机、邮件沟通',
   金融: '金融行业面试与客户沟通',
@@ -16,9 +17,11 @@ export function OnboardingPage() {
   const navigate = useNavigate()
 
   const [step, setStep] = useState(1)
-  const [domains, setDomains] = useState<Domain[]>(['计算机/IT', '职场通用'])
-  const [dailyCount, setDailyCount] = useState(3)
+  // 只开放当前有内容的领域（决策 A-12：金融 / 汽车制造暂无卡片）
+  const [domains, setDomains] = useState<Domain[]>([...AVAILABLE_DOMAINS])
+  const [dailyCount, setDailyCount] = useState(profile?.dailyCount ?? 3)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const toggleDomain = (d: Domain) => {
     setDomains((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]))
@@ -29,9 +32,14 @@ export function OnboardingPage() {
   const handleStart = async () => {
     if (domains.length === 0 || saving) return
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 450))
-    saveProfile(domains, clampCount(dailyCount))
-    navigate('/', { replace: true })
+    setError(null)
+    try {
+      await saveProfile(domains, clampCount(dailyCount))
+      navigate('/', { replace: true })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : '保存失败，请稍后重试')
+      setSaving(false)
+    }
   }
 
   const progress = step === 1 ? 50 : 100
@@ -76,7 +84,7 @@ export function OnboardingPage() {
 
         {step === 1 ? (
           <div className="chips-grid" role="group" aria-label="学习领域" style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-            {DOMAINS.map((d) => {
+            {AVAILABLE_DOMAINS.map((d) => {
               const selected = domains.includes(d)
               return (
                 <button
@@ -183,7 +191,14 @@ export function OnboardingPage() {
         {step === 1 && domains.length === 0 && (
           <p className="text-sm" style={{ color: 'var(--state-error)' }}>请至少选择一个学习领域</p>
         )}
-        {profile && (
+        {error && (
+          <p className="ds-form-error" role="alert">
+            <CircleAlert size={16} style={{ flexShrink: 0 }} />
+            {error}
+          </p>
+        )}
+        {/* 已有设置的用户会再次进入本页修改，profile 来自服务端 */}
+        {profile?.onboarded && profile.domains.length > 0 && (
           <p className="text-sm text-center" style={{ color: 'var(--muted-foreground)' }}>
             当前已设置：{profile.domains.join('、')} · {profile.dailyCount} 条/天，可在此修改
           </p>
@@ -192,3 +207,4 @@ export function OnboardingPage() {
     </main>
   )
 }
+

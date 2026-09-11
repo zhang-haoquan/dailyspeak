@@ -83,22 +83,34 @@
 - [x] `ReviewService` 单测：**13 项全绿**（阶段间隔、分数回退、封顶 S6、触底 S1、阈值边界 85/84、到期判定、跨月跨年）
 - [x] **验收通过**：`/api/health` 返回 `{ok:true, db:true, cards:10}`；单测 13/13
 
-### S2 认证
+### S2 认证 ✅ 已完成（2026-09-11）
 
-- [ ] Supabase Auth 集成（邮箱 + 密码注册 / 登录 / 登出 / session 刷新）→ D-015
-- [ ] `JwtGuard` + `@CurrentUser()` 装饰器，保护所有业务接口
-- [ ] 注册后自动初始化 `user_profiles`（`onboarded = false`）
-- [ ] 邮箱验证保持开启，验证邮件经 Mailpit 接收 → D-022
-- [ ] **验收**：能真注册、真登录、真登出，刷新后登录态保持
+- [x] Supabase Auth 集成（邮箱 + 密码注册 / 登录 / 登出 / session 刷新）→ D-015
+- [x] `JwtAuthGuard` 全局默认鉴权 + `@Public()` 放行 + `@CurrentUser()` 装饰器
+- [x] 注册后自动初始化 `user_profiles`（DB 触发器 `on_auth_user_created`，应用层 `ensureProfile` 幂等兜底）
+- [x] 邮箱验证保持开启，验证邮件经 Mailpit 接收（`http://127.0.0.1:54324`）→ D-022
+- [x] 前端接真实认证：`services/supabase.ts` + `services/http.ts` + `useAuth` 重写 + 登录页改造
+- [x] 登录页按 D-015 改为**只做邮箱**，注册后展示「验证邮件已发送」页并给出 Mailpit 入口
+- [x] `GET /api/auth/me` 返回 `{ user, profile }`，前端启动用它判断去登录页/引导页/学习台
+- [x] 路由增加 loading 过渡，避免恢复会话期间闪现登录页
+- [x] **S3 提前项**：`GET/PUT /api/profile`（没有它引导页保存不了，S2 无法端到端验收）
+- [x] 引导页按 A-12 只列出有内容的领域（计算机/IT、职场通用）
+- [x] **验收通过**：`npm run smoke` 22/22；`tools/auth-ui.mjs` 浏览器端 25/25
+      （含：真注册、真登录、引导落库、刷新后登录态保持、已登录访问 /login 自动跳走、真登出）
+
+> ⚠️ **本次改动让两个既有工具失效，待重写**：
+> `tools/e2e.mjs` 与 `tools/shots.mjs` 过去靠注入 localStorage 伪造登录态，
+> 现在认证走真实 Supabase 会话，这两者必须改为「先用 admin API 建号 + 走真实登录」。
+> 新的 `tools/auth-ui.mjs` 已经示范了这套写法，重写时直接复用。
 
 ### S3 业务接口
 
-- [ ] `GET /api/profile`、`PUT /api/profile`（领域 1–3 个 + 每日条数 1–10，边界截断）→ [PRD 5.2](./prd/PRD.md#52-首次引导选领域--定学习计划p2)
+- [x] `GET /api/profile`、`PUT /api/profile`（领域 1–3 个 + 每日条数 1–10，边界截断）→ 已在 S2 提前完成
 - [ ] `GET /api/cards/:id`
 - [ ] `GET /api/today`：今日任务快照（首次进入当天生成并落库；跟读未完成的卡优先补回；排除已到期复习卡；**跨领域补齐兜底**）→ D-004、A-12
 - [ ] `GET /api/history`：连续天数、本月/累计卡片、本周趋势（**日期口径统一走本地日期，不用 UTC 字符串前缀比较**）
 - [ ] 统一响应/错误格式 + 全局异常过滤器 + 请求日志
-- [ ] CORS 配置（本地前端源）
+- [ ] CORS 配置（本地前端源）→ 已完成基础配置，上线时按 D-020 更新域名
 - [ ] **验收**：curl / Postman 全通；`today` 快照当天固定不变
 
 ### S4 前端去 mock
@@ -198,6 +210,14 @@
 - [x] 2026-09-11 5 张表 migration + 10 张场景卡 seed
 - [x] 2026-09-11 遗忘曲线排期迁后端，13 项单测全绿
 - [x] 2026-09-11 锁定版本栈：NestJS 11.2.3 + TS 5.9.3 + Prisma 7.10.0（避开 latest 的 RC 与不兼容组合）→ D-023 / D-024
+
+### P1 S2（认证）
+- [x] 2026-09-11 Supabase Auth 接入：全局 JwtAuthGuard + @Public + @CurrentUser
+- [x] 2026-09-11 注册自动建 profile 的 DB 触发器（迁移 `20260911050000_user_profile_on_signup`）
+- [x] 2026-09-11 前端 `supabase.ts` / `http.ts` / `useAuth` 重写 / 登录页改造 / 路由 loading 过渡
+- [x] 2026-09-11 `GET/PUT /api/profile`（提前从 S3 拉过来，保证认证链路端到端可验收）
+- [x] 2026-09-11 新增 `tools/api-smoke.mjs`（22 项）与 `tools/auth-ui.mjs`（25 项浏览器端），全绿
+- [x] 2026-09-11 修复前端消费 shared 源码的构建问题 → D-025
 
 ### 样式与登录（→ D-001 / D-002 / D-003）
 - [x] 2026-09-11 修复登录页 UI 错乱：根因是**工程从未安装 Tailwind**，补齐 v4 接入

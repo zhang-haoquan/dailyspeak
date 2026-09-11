@@ -40,6 +40,7 @@
 | [D-022](#d-022-数据库与认证先用本地-supabase) | 数据库与认证先用本地 Supabase | 已定 | 已完成（P1 S1） |
 | [D-023](#d-023-后端技术栈锁定-nestjs-11--typescript-593) | 后端技术栈锁定 NestJS 11 + TS 5.9.3 | 已定 | 已完成 |
 | [D-024](#d-024-prisma-7-采用-driver-adapter--prismaconfigts) | Prisma 7 采用 driver adapter + prisma.config.ts | 已定 | 已完成 |
+| [D-025](#d-025-前端直接消费-packagesshared-源码后端消费其-cjs-产物) | 前端消费 shared 源码，后端消费 CJS 产物 | 已定 | 已完成 |
 
 ---
 
@@ -199,6 +200,19 @@
   - 运行时用 `@prisma/adapter-pg` + `pg` 构造 `PrismaClient`；
   - 生成的客户端**不入版本库**（`.gitignore` 已排除 `apps/api/src/generated/`）。
 - **影响**：改动 schema 后必须重跑 `prisma generate`；`npm run build:api` 依赖已生成的客户端。
+
+### D-025 前端直接消费 packages/shared 源码，后端消费其 CJS 产物
+
+- **日期**：2026-09-11
+- **背景**：`packages/shared` 编译成 CommonJS 供 NestJS（CJS）使用。前端首次真正 import 它时，生产构建报错：
+  `"AVAILABLE_DOMAINS" is not exported by "../../packages/shared/dist/index.js"`。
+  原因是 Rollup 的 CommonJS 插件按 `include: /node_modules/` 过滤，而工作区软链包解析后的真实路径是 `packages/shared/dist/...`，**不含 node_modules**，因此未被当作 CJS 处理，Rollup 直接去找 ESM 命名导出而失败（dev 模式走 esbuild 预打包所以没暴露）。
+- **选项**：① 双份产物（ESM + CJS）—— 需要改所有源码 import 加 `.js` 后缀才能被 Node ESM 解析，改动大；② 配置 Vite 的 `commonjsOptions.include` 兜住这个路径；③ **前端直接引用 shared 源码**。
+- **决策**：采用 ③。`apps/web/vite.config.ts` 加 `resolve.alias`，`apps/web/tsconfig.json` 加 `paths`，都指向 `packages/shared/src/index.ts`；后端继续消费 `dist`（CJS）。
+- **影响**：
+  - 前端可 tree-shaking，改 shared 立即热更新，且**类型与运行时代码同源**（都来自 src），不会出现类型走 dist、运行时走 src 的漂移。
+  - `npm run build:web` 不再依赖 `build:shared`；`build:shared` 只服务后端。
+  - 这是 monorepo 内部包的标准做法（Turborepo 称为 "just-in-time package"）。
 
 ---
 

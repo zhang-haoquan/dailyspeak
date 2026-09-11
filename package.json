@@ -24,6 +24,7 @@
     "db:seed": "npm run prisma:seed -w @dailyspeak/api",
     "db:studio": "npm run prisma:studio -w @dailyspeak/api",
     "e2e": "node tools/e2e.mjs http://localhost:5173",
+    "smoke": "node --env-file=apps/api/.env tools/api-smoke.mjs",
     "shots": "node tools/shots.mjs http://localhost:5173 shots"
   },
   "engines": {

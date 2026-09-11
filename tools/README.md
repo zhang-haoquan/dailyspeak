@@ -1,7 +1,7 @@
 # tools/ — 本地验证脚本
 
-零依赖（只用 Node 内置能力），通过 Chrome DevTools Protocol 驱动真实浏览器，
-用来回归 PRD 主链路和核对 UI 还原度。
+零依赖（只用 Node 内置能力），通过 Chrome DevTools Protocol 驱动真实浏览器 / 真实 API，
+用来回归 PRD 主链路与验收各阶段成果。
 
 ## 前置：启动一个带调试端口的 Chrome
 
@@ -16,8 +16,7 @@
   about:blank
 ```
 
-> `--use-fake-*` 提供假麦克风并自动授权，`e2e.mjs` 的「录音 → 回听 → 交接给结果页」
-> 断言依赖它；不跑音频用例时可以去掉。
+> `--use-fake-*` 提供假麦克风并自动授权，音频相关断言依赖它；不跑音频用例时可以去掉。
 > `--autoplay-policy=...` 是必要的：脚本点击不算用户手势，否则 `audio.play()` 会被拦。
 >
 > `--user-data-dir` 一定要放在项目目录**之外**：
@@ -27,52 +26,59 @@
 ## 用法
 
 ```powershell
-npm run dev                 # 另开一个终端，默认 http://localhost:5173
-npm run e2e                 # 主链路行为断言（PRD 5.3 / 5.4 / 5.5）
-npm run shots               # 逐页截图到 shots/
+npm run db:up               # 本地 Supabase
+npm run dev:api             # 后端 :3000
+npm run dev:web             # 前端 :5173
 ```
 
-需要换端口时直接跑脚本并传参：
+然后：
 
-```powershell
-node tools/e2e.mjs http://localhost:5174
-node tools/shots.mjs http://localhost:5174 shots
-```
+| 命令 | 作用 |
+| --- | --- |
+| `npm run smoke` | **API 冒烟测试**：鉴权边界、注册、邮箱确认、登录、画像自动创建、幂等、重复邮箱（22 项） |
+| `node --env-file=apps/api/.env tools/auth-ui.mjs http://localhost:5173` | **浏览器端认证验收**：真登录、引导落库、刷新保持、登出（25 项） |
+| `npm run shots` | 逐页截图到 `shots/`（⚠️ 见「待重写」） |
+| `npm run e2e` | 学习主链路回归（⚠️ 见「待重写」） |
+
+需要换端口时直接跑脚本并传参。
+
+## ⚠️ 待重写：e2e.mjs 与 shots.mjs
+
+认证改为真实 Supabase 会话之后，这两个脚本**已经失效**——它们过去靠往 localStorage
+注入 `dailyspeak:users` / `dailyspeak:session` 来伪造登录态，现在行不通了。
+
+重写方式参考 `auth-ui.mjs`：
+
+1. 用 Supabase admin API 建一个已确认邮箱的账号；
+2. 在浏览器里走真实登录表单；
+3. 再执行原有的断言 / 截图。
+
+（已登记在 [`docs/TODO.md`](../docs/TODO.md) 的 S2 小节与 P4 小节。）
 
 ## 覆盖范围
 
-`e2e.mjs` 断言（73 项）：
+### `api-smoke.mjs`（22 项，`npm run smoke`）
 
-- 今日任务快照：条数、新句/复习配比、当天固定不变
-- 「只完成跟读」的卡不会从今日任务里消失，且不计入完成进度
-- 完整走通「跟读 → 结果 → 情境应答 → 归档」链路（走无麦克风兜底分支）
-- 遗忘曲线排期：新卡建 S1，复习卡一次只推进一级，不波及其它卡
-- 历史页统计口径：连续天数、本月/累计卡片、本周趋势图落在今天
-- 录音回听：录音后出现回听按钮、生成 `blob:` 音频、真的在播放且进度推进、
-  可暂停、并交接给结果页后仍能播放
-- ASR 词级比对纯函数（直接 `import('/src/services/asr.ts')` 断言）：
-  漏词/替换词/标点大小写/空转写/模拟转写可复现，含「开头漏词不会带偏后续匹配」回归
-- 转写回显链路：录音 → 「我听到的」卡片 → 逐词对照 → 词级准确度 →
-  结果页分数确实等于 `f(相似度)`
+- `@Public()` 放行；无令牌 / 伪造令牌被拒
+- 注册后邮箱未确认不能登录 → admin 确认 → 登录成功
+- `/api/auth/me` 返回用户与画像
+- 注册触发自动建 profile（`onboarded=false`、`dailyCount=3`、`domains=[]`）
+- 重复访问幂等；重复邮箱不建新号
 
-## ASR 供应商切换
+### `auth-ui.mjs`（25 项，浏览器端）
 
-跟读的发音分来自「ASR 转写 vs 原句」的词级相似度。转写有两个可替换实现：
+- 未登录访问 `/`、`/history` 被挡回登录页
+- 真实登录 → 新用户进首次引导 → 两步向导保存 → 进学习台
+- 引导页只列出有内容的领域（决策 A-12）
+- 直接查库核对 `onboarded / domains / daily_count`
+- 刷新后登录态保持；已登录访问 `/login` 自动跳走；登出后再次被挡
 
-| 值 | 行为 |
-|---|---|
-| `auto`（默认） | 浏览器支持 `SpeechRecognition` 就用真实识别，失败自动降级到模拟 |
-| `browser` | 强制使用浏览器原生识别（Chrome/Edge，需联网） |
-| `mock` | 强制使用本地模拟转写（离线可复现，界面上标注「模拟转写（演示）」） |
+### `e2e.mjs`（73 项，待重写）
 
-```js
-// 浏览器控制台
-localStorage.setItem('dailyspeak:asrProvider', 'mock')
-// 或
-import('/src/services/asr.ts').then(m => m.setAsrPreference('browser'))
-```
+今日任务快照、卡片不丢失、完整学习链路、遗忘曲线推进、历史统计口径、
+录音回听、ASR 词级比对与转写回显。
 
-界面上始终用徽章标出这段文本是**真实识别**还是**模拟**，不会混淆。
+### `shots.mjs`（14 张，待重写）
 
-`shots.mjs` 输出 14 张截图：登录（桌面/移动/注册/校验报错）、引导、学习台、
-场景卡、跟读（回听 + 转写回显）、情境应答、应答回听、跟读结果、历史。
+登录（桌面/移动/注册/校验报错）、引导、学习台、场景卡、跟读回听、
+情境应答、应答回听、跟读结果、历史。
