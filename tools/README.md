@@ -33,7 +33,7 @@ npm run dev:web             # 前端 :5173
 
 | 命令 | 作用 | 依赖 |
 | --- | --- | --- |
-| `npm run smoke` | **API 冒烟测试**：鉴权边界、注册、邮箱确认、登录、画像自动创建、幂等、重复邮箱（22 项） | 后端 |
+| `npm run smoke` | **API 冒烟测试**：鉴权边界、注册、邮箱确认、登录、画像、卡片详情、今日快照、历史统计、错误格式（58 项） | 后端 |
 | `npm run auth-ui` | **浏览器端认证验收**：真登录、引导落库、刷新保持、登出（25 项） | 后端 + 前端 + Chrome |
 | `npm run e2e` | 学习主链路回归（73 项，⚠️ 待重写） | — |
 
@@ -82,13 +82,25 @@ node --env-file=apps/api/.env tools/auth-ui.mjs http://localhost:5173
 
 ## 覆盖范围
 
-### `api-smoke.mjs`（22 项，`npm run smoke`）
+### `api-smoke.mjs`（58 项，`npm run smoke`）
+
+**认证与鉴权边界（S2）**
 
 - `@Public()` 放行；无令牌 / 伪造令牌被拒
 - 注册后邮箱未确认不能登录 → admin 确认 → 登录成功
 - `/api/auth/me` 返回用户与画像
 - 注册触发自动建 profile（`onboarded=false`、`dailyCount=3`、`domains=[]`）
 - 重复访问幂等；重复邮箱不建新号
+
+**业务接口（S3）**
+
+- `GET /api/cards/:id`：内容/原句/中文/提问齐全、不下发审核字段、未学过时 `progress`/`review` 为 `null`
+- 不存在的卡片 → 404 + 统一错误体；无令牌 → 401 + `UNAUTHORIZED`
+- `GET /api/today`：`dateKey` 为本地日期、卡片数等于每日条数、每张卡带完整内容、步骤标记初始未完成、无内容告警
+- **当天重复请求返回同一份快照（顺序也一致）**——验证 D-004
+- 改学习计划后快照作废并按新条数重新生成（D-027）
+- `GET /api/history`：新账号各项为 0、周趋势固定 7 个桶、`recent` 为空、无令牌 401
+- 统一校验错误（D-030）：`VALIDATION_FAILED` + 字段级 `details`、未知字段被拒、空领域数组、暂不可用领域被拒
 
 ### `auth-ui.mjs`（25 项，`npm run auth-ui`）
 

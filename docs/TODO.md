@@ -8,18 +8,24 @@
 
 ## 当前状态
 
-**P1 已开工。** 所有开工前的阻塞项已清空：
+**P1 进行中：S1 ✅ / S2 ✅ / S3 ✅ / S4 ⬜。**
 
 | 项 | 结论 |
 | --- | --- |
 | 目录结构 | monorepo（`apps/web` + `apps/api` + `packages/shared`）→ [D-014](./DECISIONS.md#d-014-仓库结构采用-monorepo) |
 | 数据库 / 认证 | 本地 Supabase（Docker），后续迁云端 → [D-022](./DECISIONS.md#d-022-数据库与认证先用本地-supabase) |
 | 认证范围 | 只做邮箱 + 密码 → [D-015](./DECISIONS.md#d-015-认证范围只做邮箱--密码) |
-| 邮箱验证 | 走本地 Inbucket，保持开启 → D-022 |
+| 邮箱验证 | 走本地 Mailpit，保持开启 → D-022 |
 | Git 基线 | 已建立并推送 GitHub 私有仓库（`b98bca3`）→ [D-021](./DECISIONS.md#d-021-版本控制基线已建立) |
-| LLM 供应商 | DeepSeek → [D-012](./DECISIONS.md#d-012-llm-供应商选定-deepseek) |
+| LLM 供应商 | DeepSeek（密钥已填）→ [D-012](./DECISIONS.md#d-012-llm-供应商选定-deepseek) |
+| ASR 供应商 | 腾讯云一句话识别（密钥已填）→ [D-013](./DECISIONS.md#d-013-asr-供应商选定腾讯云语音识别) |
 
-**唯一待你决策的**：ASR 供应商（A-2）。**它不阻塞 P1**，但 P2 开工前必须定。
+**P1 开工前的阻塞项已全部清空**，凭证区（B-2 / B-3）也已填好，
+**可以直接进 S4（前端去 mock）**。
+
+**P2 之前需要你决策的**：A-6（用户录音是否落库 Supabase Storage）。
+**P3 之前**：A-5（参考音频方案）、A-7（内容管道排期）、A-11（首发内容量）。
+A-8（离线缓存）可与 P4 一起定。
 
 ---
 
@@ -107,27 +113,37 @@
 >
 > `tools/shots.mjs` 已按 [D-026](./DECISIONS.md) 删除（截图改用按需的一次性脚本）。
 
-### S3 业务接口
+### S3 业务接口 ✅ 已完成（2026-09-11）
 
 - [x] `GET /api/profile`、`PUT /api/profile`（领域 1–3 个 + 每日条数 1–10，边界截断）→ 已在 S2 提前完成
-- [ ] `GET /api/cards/:id`
-- [ ] `GET /api/today`：今日任务快照（首次进入当天生成并落库；跟读未完成的卡优先补回；排除已到期复习卡；**跨领域补齐兜底**）→ D-004、A-12
-- [ ] `GET /api/history`：连续天数、本月/累计卡片、本周趋势（**日期口径统一走本地日期，不用 UTC 字符串前缀比较**）
-- [ ] 统一响应/错误格式 + 全局异常过滤器 + 请求日志
-- [ ] CORS 配置（本地前端源）→ 已完成基础配置，上线时按 D-020 更新域名
-- [ ] **验收**：curl / Postman 全通；`today` 快照当天固定不变
+- [x] `GET /api/cards/:id`：内容 + 我的进度 + 我的复习阶段，一次返回；非 `published` 一律 404
+- [x] `GET /api/today`：今日任务快照（首次进入当天生成并落库；跟读未完成的卡优先补回；排除已到期复习卡；**跨领域补齐兜底**）→ D-004、D-027、A-12、D-031
+- [x] `GET /api/history`：连续天数、本月/累计卡片、本周趋势、最近练习（**日期口径统一走本地日期**，不用 UTC 字符串前缀比较）→ D-028、D-029
+- [x] 统一响应/错误格式 + 全局异常过滤器 + 请求日志 → D-030
+- [x] CORS 配置（本地前端源）→ 已完成基础配置，上线时按 D-020 更新域名
+- [x] **验收通过**：`npm run smoke` **58/58**；单测 **50/50**（新增排卡算法 20 项、历史统计 13 项）
+      - 含：快照当天固定不变、改学习计划后快照作废重生成、404/401 统一错误体、字段级 `details`、未知字段被拒
+
+> **S3 与 P2 之间的已知断层**（一次说清，避免误判为 bug）：
+> `GET /api/today` 的步骤标记（`repeatDone`/`answerDone`）来自服务端的 `user_progress`，
+> 而**打分提交接口要到 P2 才有**（`POST /api/score/repeat|answer`）。
+> 因此在 P2 落地前：学习台能正确取到今日卡片，但**做完一张卡后「跟读/应答」标记不会变化**。
+> 这不是忘了接，是接口还不存在——本地那套假打分不会上传。
+> 学习页/应答页/结果页仍走本地评测（`services/scoring.ts` + `services/asr.ts`），P2 一并删除。
 
 ### S4 前端去 mock
 
-- [ ] 新增 http 层：fetch 封装、注入 Authorization、401 刷新、超时与重试
-- [ ] 重写 `useAuth`：接 Supabase session，**同时删掉明文密码存储**
-- [ ] `Login.tsx`：接真实注册/登录，删除 `setTimeout` 假延迟
-- [ ] `Onboarding.tsx` → `PUT /api/profile`；**下掉金融 / 汽车制造两个空领域** → A-12
-- [ ] `Dashboard.tsx` → `GET /api/today` + 骨架屏
-- [ ] `History.tsx` → `GET /api/history`
+- [ ] 引入 **TanStack Query**（`QueryClientProvider` + 查询封装），统一处理加载/错误/重试/缓存 → PRD 08
+- [ ] 新增 `services/endpoints.ts`：`today()` / `history()` / `card(id)`，自动注入令牌
+- [ ] 删除 `services/api.ts`（localStorage 假后端）、`services/storage.ts`
+- [ ] 删除 `data/cards.ts`（硬编码 10 张种子卡，内容改由 `GET /api/today`、`GET /api/cards/:id` 下发）
+- [ ] 删除 `services/review.ts`（排期已下沉后端，前端只需要 shared 的 `stageInfo`）
+- [ ] 删除 `types/index.ts`（类型改从 `packages/shared` 取，过渡期只留评测演示用的三个类型）
+- [ ] `Dashboard.tsx` → `GET /api/today` + 骨架屏 + 内容不足告警条
+- [ ] `History.tsx` → `GET /api/history`；`score === null` 显示「未打分」，不显示 0 分
+- [ ] `Learning.tsx` / `Answer.tsx` / `Result.tsx` → `GET /api/cards/:id`
 - [ ] 全局补齐**加载态 / 空态 / 错误态**（现在一个都没有）
-- [ ] 删除 `services/storage.ts`、`services/api.ts`（localStorage 假后端）
-- [ ] 删除 `data/cards.ts`（硬编码 10 张种子卡）
+- [ ] 补上 PRD 5.3 学习台顶部摘要（连续 N 天 / 累计 M 张）——设计稿里有，当前实现没有，接 `GET /api/history` 后顺手补
 - [ ] **验收**：浏览器跑通「登录 → 选领域 → 看到今日卡 → 历史」；localStorage 里**不再有任何 `dailyspeak:` 数据**
 
 ---
@@ -192,6 +208,8 @@
 - [ ] 服务器上配置 `apps/api/.env`：云端 `DATABASE_URL`、`SUPABASE_*`、`DEEPSEEK_API_KEY`、`TENCENT_*`
 - [ ] 前端构建产物（`npm run build:web`）由服务器 Web 服务托管
 - [ ] 后端用 pm2 / systemd 守护，开机自启、崩溃自动重启
+- [ ] **进程环境变量显式设置 `TZ=Asia/Shanghai`**——「今天 / 本月 / 连续天数」全按本地日期判定，
+      服务器时区不对会算错日期（→ [D-027](./DECISIONS.md#d-027-今日快照的生成口径复习卡不截断)、[D-028](./DECISIONS.md#d-028-连续学习天数今天没学从昨天往前数)）
 - [ ] 反向代理 + HTTPS 证书（前端与 `/api` 同域可省掉 CORS 麻烦）
 - [ ] 更新 `CORS_ORIGINS` 为服务器域名 → [D-020](./DECISIONS.md#d-020-部署形态自有服务器--云端-supabase)
 - [ ] Supabase Auth 的「跳转地址白名单」加入服务器域名
@@ -223,6 +241,18 @@
 - [x] 2026-09-11 `GET/PUT /api/profile`（提前从 S3 拉过来，保证认证链路端到端可验收）
 - [x] 2026-09-11 新增 `tools/api-smoke.mjs`（22 项）与 `tools/auth-ui.mjs`（25 项浏览器端），全绿
 - [x] 2026-09-11 修复前端消费 shared 源码的构建问题 → D-025
+
+### P1 S3（业务接口）
+- [x] 2026-09-11 `GET /api/cards/:id`：内容 + 进度 + 复习阶段一次返回，非 published 一律 404
+- [x] 2026-09-11 `GET /api/today`：排卡纯函数（`today.plan.ts`）+ 快照落库 + 并发幂等 + 跨领域补齐 → D-027 / D-031
+- [x] 2026-09-11 `GET /api/history`：连续天数、本月/累计卡片、周趋势、最近练习 → D-028 / D-029
+- [x] 2026-09-11 全局异常过滤器收敛统一错误体 `{ code, message, details? }`，5xx 不外泄内部信息 → D-030
+- [x] 2026-09-11 全局请求日志拦截器（方法/路径/状态/耗时/用户，不记请求体）→ D-030
+- [x] 2026-09-11 ValidationPipe 自定义 `exceptionFactory`，校验失败给出字段级 `details`
+- [x] 2026-09-11 单测从 13 项扩到 **50 项**（新增排卡算法 20 项、历史统计 13 项等）
+- [x] 2026-09-11 `tools/api-smoke.mjs` 从 22 项扩到 **58 项**（卡片详情、今日快照、历史统计、错误格式）
+- [x] 2026-09-11 修复连续天数「今天没学就归零」与「洗牌有偏」两处缺陷 → D-028 / D-031
+- [x] 2026-09-11 「最近练习」不再用跟读分或 0 分顶替降级记录 → D-029
 
 ### 样式与登录（→ D-001 / D-002 / D-003）
 - [x] 2026-09-11 修复登录页 UI 错乱：根因是**工程从未安装 Tailwind**，补齐 v4 接入

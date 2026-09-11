@@ -31,3 +31,38 @@ export function addLocalDays(date: Date, days: number): Date {
 export function isSameLocalDay(a: Date, b: Date): boolean {
   return startOfLocalDay(a).getTime() === startOfLocalDay(b).getTime()
 }
+
+/** 取本地当天 23:59:59.999，用于「截止到今天」的区间上界 */
+export function endOfLocalDay(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(23, 59, 59, 999)
+  return d
+}
+
+/** 取所在自然周的周一 00:00（历史页周趋势图固定「一…日」） */
+export function startOfLocalWeek(date: Date): Date {
+  const d = startOfLocalDay(date)
+  // getDay(): 周日=0，这里换算成周一=0
+  const offset = (d.getDay() + 6) % 7
+  d.setDate(d.getDate() - offset)
+  return d
+}
+
+/** 取所在自然月 1 日 00:00 */
+export function startOfLocalMonth(date: Date): Date {
+  const d = startOfLocalDay(date)
+  d.setDate(1)
+  return d
+}
+
+/** 取下个自然月 1 日 00:00（做「本月」区间上界，避免月底 +1 天算错） */
+export function startOfNextLocalMonth(date: Date): Date {
+  const d = startOfLocalMonth(date)
+  d.setMonth(d.getMonth() + 1)
+  return d
+}
+
+/** 本地月份键 YYYY-MM */
+export function formatMonthKey(date: Date): string {
+  return formatDateKey(date).slice(0, 7)
+}
