@@ -102,10 +102,10 @@ npm run dev:api             # 后端 http://localhost:3000/api
 npm run build               # shared → web → api 全量构建
 npm test                    # 后端单测（遗忘曲线排期）
 npm run smoke               # API 冒烟测试（鉴权 + 注册登录，22 项）
+npm run auth-ui             # 浏览器端认证验收（25 项）
 npm run db:studio           # Prisma Studio 看数据
 npm run db:status           # 查看本地 Supabase 各服务地址与密钥
-npm run e2e                 # 端到端回归（⚠️ 认证改造后待重写，见 tools/README.md）
-npm run shots               # 逐页截图（⚠️ 同上）
+npm run e2e                 # 学习主链路回归（⚠️ 认证改造后待重写，见 tools/README.md）
 ```
 
 健康检查：`curl http://localhost:3000/api/health` → `{"ok":true,"db":true,"cards":10}`

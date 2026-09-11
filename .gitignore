@@ -13,9 +13,11 @@ apps/api/src/generated/
 supabase/.temp/
 supabase/.branches/
 
-# 本地验证产物（tools/shots.mjs 生成）
-shots/
+# 本地验证产物
 e2e.log
+# 临时截图（不再有专门的截图脚本，改成按需一次性渲染时输出到这里）
+shots/
+*.shot.png
 
 # 编辑器 / 系统
 .vscode/*

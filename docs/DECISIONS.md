@@ -41,6 +41,7 @@
 | [D-023](#d-023-后端技术栈锁定-nestjs-11--typescript-593) | 后端技术栈锁定 NestJS 11 + TS 5.9.3 | 已定 | 已完成 |
 | [D-024](#d-024-prisma-7-采用-driver-adapter--prismaconfigts) | Prisma 7 采用 driver adapter + prisma.config.ts | 已定 | 已完成 |
 | [D-025](#d-025-前端直接消费-packagesshared-源码后端消费其-cjs-产物) | 前端消费 shared 源码，后端消费 CJS 产物 | 已定 | 已完成 |
+| [D-026](#d-026-不保留截图脚本改为按需一次性渲染) | 不保留截图脚本，改为按需一次性渲染 | 已定 | 已完成 |
 
 ---
 
@@ -164,7 +165,7 @@
 - **状态变更**：原为待确认，用户已于本轮完成。
 - **背景**：P1 是一次数据层重写，没有回滚点风险很高。
 - **决策**：用户已 `git init` 并推送到 GitHub **私有**仓库 `github.com/zhang-haoquan/dailyspeak`，基线提交 `b98bca3`（49 个文件）。
-- **影响**：后续改造按阶段提交，便于回滚与审阅。`.gitignore` 排除 `node_modules/`、`dist/`、`shots/`、`*.tsbuildinfo`。
+- **影响**：后续改造按阶段提交，便于回滚与审阅。`.gitignore` 排除 `node_modules/`、`dist/`、`*.tsbuildinfo`、`apps/api/src/generated/`。
 
 ### D-022 数据库与认证先用本地 Supabase
 
@@ -213,6 +214,19 @@
   - 前端可 tree-shaking，改 shared 立即热更新，且**类型与运行时代码同源**（都来自 src），不会出现类型走 dist、运行时走 src 的漂移。
   - `npm run build:web` 不再依赖 `build:shared`；`build:shared` 只服务后端。
   - 这是 monorepo 内部包的标准做法（Turborepo 称为 "just-in-time package"）。
+
+### D-026 不保留截图脚本，改为按需一次性渲染
+
+- **日期**：2026-09-11
+- **背景**：曾维护 `tools/shots.mjs`，一键把 14 个页面渲染成 PNG。它的实际用途是**让 AI（我）看到页面**——排查「登录页错乱」、发现「逐词对照被挤成一串」这类纯视觉 bug 时用过。但它有两个问题：
+  1. **对用户价值低**：用户自己打开浏览器看更快，且脚本不判断对错，页面坏了也照样"成功"产图；
+  2. **维护成本高**：认证改为真实 Supabase 会话后它直接失效，且失效方式是**静默产出 14 张一模一样的登录页截图**——比报错更危险。
+- **决策**：**删除 `tools/shots.mjs`**。需要看页面时临时写一次性 CDP 脚本渲染出图，看完即删（本次排查登录页就是这么做的：写 `_shotlogin.mjs` → 截图 → 删除）。
+- **影响**：
+  - `tools/` 只保留有**判断能力**的回归脚本（`api-smoke.mjs` / `auth-ui.mjs` / `e2e.mjs`），不再维护无断言的截图脚本。
+  - 界面检查回归到最直接的方式：浏览器打开 `http://localhost:5173`；与设计稿对比用 `design/pages/`。
+  - `.gitignore` 保留 `shots/` 与 `*.shot.png`，供临时截图使用，避免误提交。
+  - `e2e.mjs` **不删**（与本决策相反）：它有判断能力，73 项断言编码了 PRD 业务规则，是重写时的规格参照。
 
 ---
 
