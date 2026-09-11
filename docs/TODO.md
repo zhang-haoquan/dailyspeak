@@ -26,28 +26,28 @@
 ## A. 待你确认
 
 - [x] **A-1** LLM 供应商选型 → **DeepSeek** ｜ 2026-09-11 → [D-012](./DECISIONS.md#d-012-llm-供应商选定-deepseek)
-- [ ] 🔴 **A-2** **ASR 供应商选型（P2 前必须定）** → [D-013](./DECISIONS.md#d-013-asr-供应商选型待确认)
-      ⚠️ DeepSeek 无任何音频接口，ASR 必须独立选供应商。
-      建议 **A+B 双实现**：开发测试用本地 Whisper 容器（免费、可离线、e2e 可复现），生产切通义 Paraformer。
+- [x] **A-2** ASR 供应商选型 → **腾讯云语音识别**（一句话识别 `SentenceRecognition`）｜ 2026-09-11 → [D-013](./DECISIONS.md#d-013-asr-供应商选定腾讯云语音识别)
 - [x] **A-3** 仓库目录结构 → **monorepo A 方案**，接受搬迁 ｜ 2026-09-11 → [D-014](./DECISIONS.md#d-014-仓库结构采用-monorepo)
 - [x] **A-4** 认证范围 → **只做邮箱 + 密码** ｜ 2026-09-11 → [D-015](./DECISIONS.md#d-015-认证范围只做邮箱--密码)
 - [ ] 🟡 **A-5** 参考音频方案：浏览器 TTS vs 服务端 TTS 预生成（**P3 前定**，DeepSeek 无 TTS）→ [D-016](./DECISIONS.md#d-016-参考音频方案待确认)
 - [ ] 🟡 **A-6** 用户录音是否落库 Supabase Storage（**P2 前定**）→ [D-017](./DECISIONS.md#d-017-音频是否落库待确认)
 - [ ] 🟡 **A-7** 内容生成管道排期：本轮做还是放 P3 → [D-018](./DECISIONS.md#d-018-内容生成管道排期待确认)
 - [ ] 🟡 **A-8** 离线缓存是否本轮做 → [D-019](./DECISIONS.md#d-019-离线缓存排期待确认)
-- [x] **A-9** 部署形态 → 已说明清楚，**不阻塞 P1**，先按 localhost 配置；有上线计划时在 P2 结束前告知域名 ｜ 2026-09-11 → [D-020](./DECISIONS.md#d-020-部署形态待确认)
+- [x] **A-9** 部署形态 → **自有服务器**：前端 + 后端都部署在该服务器，数据库用 Supabase 云端 ｜ 2026-09-11 → [D-020](./DECISIONS.md#d-020-部署形态自有服务器--云端-supabase)
 - [x] **A-10** 是否先建 Git 基线 → **已完成**（GitHub 私有仓库）｜ 2026-09-11 → [D-021](./DECISIONS.md#d-021-版本控制基线已建立)
 - [ ] 🟡 **A-11** 首发上线卡片数量目标（建议每领域 ≥ 20 张，**P3 前定**）→ 关联 [D-018](./DECISIONS.md#d-018-内容生成管道排期待确认)
 - [x] **A-12** 金融 / 汽车制造领域处理 → **按推荐**：P1 从 Onboarding 下掉这两个空领域，同时后端实现跨领域补齐兜底 ｜ 2026-09-11
+- [ ] 🟡 **A-13** 确认腾讯云「**一句话识别**」是否也在免费额度内（你提到的额度页列的是「录音文件识别」与「实时语音识别」，是不同子产品）。若额度只覆盖录音文件识别，需改用异步 `CreateRecTask` + 轮询 → [D-013](./DECISIONS.md#d-013-asr-供应商选定腾讯云语音识别)
 
 ---
 
 ## B. 需要你提供的凭证
 
-- [x] ~~**B-1** Supabase 云端凭证~~ → **走本地 Supabase，无需提供** ｜ 2026-09-11 → [D-022](./DECISIONS.md#d-022-数据库与认证先用本地-supabase)
-- [ ] 🔵 **B-2** DeepSeek API Key（`DEEPSEEK_API_KEY`）—— **P2 开工前提供即可**，P1 不需要
-- [ ] 🔴 **B-3** ASR 服务凭证 —— 取决于 A-2 的结论；若选本地 Whisper 则**无需凭证**
-- [ ] ⚪ **B-4** 邮件发送（仅上线时需要；本地用 Inbucket，不需要）
+- [x] ~~**B-1** Supabase 云端凭证~~ → 本地开发阶段无需提供（上线时再给）｜ 2026-09-11 → [D-022](./DECISIONS.md#d-022-数据库与认证先用本地-supabase)
+- [ ] 🔵 **B-2** DeepSeek API Key → `apps/api/.env` 的 `DEEPSEEK_API_KEY`（**P2 开工前提供**）
+- [ ] 🔴 **B-3** 腾讯云 API 密钥 → `apps/api/.env` 的 `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`（**P2 开工前提供**）
+      ⚠️ 是「访问密钥 → API 密钥管理」里的 **SecretId / SecretKey**，不是 AppID
+- [ ] 🔵 **B-4** 上线时：服务器域名 / SSH 信息、Supabase 云端密钥、邮件发送配置
 - [x] ~~**B-5** 短信服务商~~ → **已否决**（只做邮箱）｜ 2026-09-11
 
 ---
@@ -120,10 +120,13 @@
 
 ### 后端
 
-- [ ] `AsrProvider` 接口 + 本地 Whisper 实现（开发/测试）→ A-2
-- [ ] `AsrProvider` + 云端实现（通义 Paraformer，生产）→ A-2
+- [ ] `AsrProvider` 接口（`transcribe(audio): Promise<{ text; confidence? }>`）
+- [ ] **腾讯云 ASR 实现**：`SentenceRecognition` + `tencentcloud-sdk-nodejs-asr`，`EngSerViceType = 16k_en`、`VoiceFormat = wav`、`SourceType = 1` → D-013
+- [ ] **前端 WAV 编码工具**：MediaRecorder blob → `decodeAudioData` → 重采样 16kHz 单声道 → 16-bit PCM WAV → base64
+      - [ ] 单测：采样率转换、声道降混、WAV 头正确性、时长/体积校验
+      - [ ] ⚠️ 腾讯不支持 webm，Chrome 默认录的就是 webm，这一步不能省
 - [ ] `LlmProvider` 接口 + DeepSeek 实现（OpenAI 兼容，`base_url = https://api.deepseek.com`）→ D-012
-- [ ] 音频上传接口：multipart、**时长/格式/大小校验**（跟读 3–15s、应答 30–60s）→ [PRD 09](./prd/PRD.md#09-边界与异常处理)
+- [ ] 音频上传接口：multipart、**时长/体积双校验**（跟读 3–15s、应答 30–60s、Base64 后 ≤ 3MB）→ [PRD 09](./prd/PRD.md#09-边界与异常处理)
 - [ ] 词级对齐算法下沉后端（归一化 → LCS 对齐 → 相似度），含单测
       - [ ] 覆盖「开头漏词不会带偏后续匹配」这条回归
 - [ ] `POST /api/score/repeat`：ASR → 词级比对 → 分数/反馈/`transcript`/`transcriptSource`/`alignment`/`similarity` → D-008、D-009
@@ -166,7 +169,20 @@
 
 ---
 
-## H. 已完成
+## H. 上线前检查清单（准备部署到自有服务器时执行 → D-020）
+
+- [ ] Supabase 云端项目建好，`supabase link` + `db push` 推送 schema 与 migration
+- [ ] 服务器上配置 `apps/api/.env`：云端 `DATABASE_URL`、`SUPABASE_*`、`DEEPSEEK_API_KEY`、`TENCENT_*`
+- [ ] 前端构建产物（`npm run build:web`）由服务器 Web 服务托管
+- [ ] 后端用 pm2 / systemd 守护，开机自启、崩溃自动重启
+- [ ] 反向代理 + HTTPS 证书（前端与 `/api` 同域可省掉 CORS 麻烦）
+- [ ] 更新 `CORS_ORIGINS` 为服务器域名 → [D-020](./DECISIONS.md#d-020-部署形态自有服务器--云端-supabase)
+- [ ] Supabase Auth 的「跳转地址白名单」加入服务器域名
+- [ ] 关闭 Supabase 默认开启的邮箱确认限流问题（或配置自定义 SMTP）→ B-4
+
+---
+
+## I. 已完成
 
 ### 文档基建
 - [x] 2026-09-11 建立 `docs/` 文档结构：PRD 权威版 + 决策记录 + 待办清单
